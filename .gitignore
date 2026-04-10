@@ -86,5 +86,7 @@ htmlcov/
 !logs/.gitkeep
 
 /scripts
+!scripts/download_fonts.py
+!scripts/generate_icon.py
 debug_runner.py
 .claude/
