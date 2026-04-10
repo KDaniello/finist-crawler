@@ -71,8 +71,8 @@ def generate_icon() -> None:
         sizes=[(s, s) for s in sizes],
         append_images=frames[1:],
     )
-    print(f"✅ Иконка сохранена: {ICON_PATH}")
-    print(f"   Размеры: {sizes}")
+    print(f"✅ Icon saved: {ICON_PATH}")
+    print(f"   Sizes: {sizes}")
 
 
 if __name__ == "__main__":

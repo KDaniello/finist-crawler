@@ -3,7 +3,10 @@ name: Build Windows EXE
 on:
   push:
     tags:
-      - "v*.*.*"   # Триггер: git tag v0.1.0 && git push origin v0.1.0
+      - "v*.*.*"
+
+env:
+  PYTHONUTF8: "1"
 
 jobs:
   build-exe:
@@ -29,10 +32,8 @@ jobs:
 
       - name: Download Camoufox browser
         run: python -m camoufox fetch
-        # Camoufox скачивает Firefox бинарник (~60 MB)
-        # Он попадёт в site-packages/camoufox/ и будет подхвачен PyInstaller
 
-      - name: Download fonts
+      - name: Check fonts
         run: python scripts/download_fonts.py
 
       - name: Generate icon
@@ -44,11 +45,11 @@ jobs:
       - name: Verify EXE exists
         run: |
           if (!(Test-Path "dist\FinistCrawler.exe")) {
-            Write-Error "FinistCrawler.exe не найден в dist/"
+            Write-Error "FinistCrawler.exe not found in dist/"
             exit 1
           }
           $size = (Get-Item "dist\FinistCrawler.exe").length / 1MB
-          Write-Host "Размер: $([math]::Round($size, 1)) MB"
+          Write-Host "Size: $([math]::Round($size, 1)) MB"
         shell: pwsh
 
       - name: Upload artifact
@@ -65,18 +66,15 @@ jobs:
           body: |
             ## Finist Crawler ${{ github.ref_name }}
 
-            ### Установка
-            1. Скачайте `FinistCrawler.exe`
-            2. Запустите — установка не требуется
-            3. При первом запуске Windows может показать предупреждение SmartScreen — нажмите «Подробнее» → «Запустить»
+            ### Installation
+            1. Download `FinistCrawler.exe`
+            2. Run — no installation required
+            3. On first launch Windows SmartScreen may show a warning — click "More info" -> "Run anyway"
 
-            ### Что нового
-            См. [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
-
-            ### Системные требования
+            ### System requirements
             - Windows 10 / 11 (x64)
-            - ~500 MB свободного места
-            - Интернет-соединение
+            - ~500 MB free disk space
+            - Internet connection
           files: dist/FinistCrawler.exe
           draft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
