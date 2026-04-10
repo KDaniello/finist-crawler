@@ -11,7 +11,8 @@ import sys
 
 block_cipher = None
 ROOT = Path(SPECPATH)
-SP = Path(sys.executable).parent.parent / "Lib" / "site-packages"
+import sysconfig
+SP = Path(sysconfig.get_paths()["purelib"])
 
 # ── Пакеты ───────────────────────────────────────────────────────────────────
 import flet
