@@ -1,0 +1,63 @@
+source_key: lenta_articles
+version: v1
+description: >
+  Двухэтапный парсер Lenta.ru.
+  Этап 1 (list): Search API v2 → собираем метаданные и URL статей.
+  Этап 2 (detail): HTML страницы → полный текст через json-topic-info.
+  Пользователь передаёт keyword через template_params.
+flow: [list, detail]
+
+crawler:
+  render: static
+  impersonate: chrome131
+
+  request_headers:
+    User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    Accept-Language: "ru-RU,ru;q=0.9,en;q=0.7"
+    X-Requested-With: "XMLHttpRequest"
+
+  limits:
+    max_pages: 5          # страниц Search API (5 × 10 = 50 статей)
+    detail_max_pages: 0   # 0 = все статьи из list (без ограничения detail)
+    concurrency: 5
+    requests_per_second: 3.0
+    request_timeout_sec: 20
+
+  # ==========================================================
+  # ЭТАП 1: Search API v2
+  # ==========================================================
+  list:
+    # {keyword} подставляется из config_overrides.template_params.keyword
+    url_template: "https://lenta.ru/search/v2/process?query={keyword}&from=0&size=10&sort=2&title_only=0&domain=1&modified,format=yyyy-MM-dd"
+    extraction_mode: lenta_search
+
+    # item_selector не используется LentaSearchExtractor напрямую,
+    # но обязателен для валидации schema.json
+    item_selector: "matches"
+
+    fields:
+      detail_url:
+        selector: "url"
+
+    pagination:
+      mode: offset
+    next_page:
+      # LentaSearchExtractor строит next_url сам через from= параметр,
+      # attr здесь не используется но нужен для schema
+      attr: "10"
+
+  # ==========================================================
+  # ЭТАП 2: HTML страницы статьи
+  # ==========================================================
+  detail:
+    extraction_mode: lenta_article
+
+    # item_selector не используется LentaArticleExtractor,
+    # но обязателен для валидации schema.json
+    item_selector: "body"
+
+    fields:
+      text:
+        selector: "script.json-topic-info"
+      author:
+        selector: ".topic-authors__name"

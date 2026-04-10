@@ -1,0 +1,52 @@
+source_key: habr_articles
+version: v2
+description: Двухэтапный парсер Хабра (Поиск -> Полные статьи через внутренний API)
+flow: [list, detail]
+
+crawler:
+  render: static
+  request_headers:
+    Origin: "https://habr.com"
+    Referer: "https://habr.com/ru/search/"
+    Accept: "application/json, text/plain, */*"
+    User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+  limits:
+    max_pages: 2 
+    # ФИКС: Хабр выдержит любую нагрузку
+    concurrency: 5
+    requests_per_second: 10.0
+
+  list:
+    url_template: "https://habr.com/kek/v2/articles/?query={keyword}&order=relevance&fl=ru&hl=ru&page=1&perPage=20"
+    extraction_mode: json
+    item_selector: "publicationRefs.*"
+    fields:
+      detail_url:
+        selector: "id"
+    pagination:
+      mode: offset
+    next_page:
+      attr: "1"
+
+  detail:
+    url_template: "https://habr.com/kek/v2/articles/{}/?fl=ru&hl=ru"
+    extraction_mode: json
+    item_selector: "@"
+    fields:
+      external_id:
+        selector: "id"
+      title:
+        selector: "titleHtml" 
+      author:
+        selector: "author.alias"
+      created_at:
+        selector: "timePublished"
+      views:
+        selector: "statistics.readingCount"
+      likes:
+        selector: "statistics.score"
+      comments:
+        selector: "statistics.commentsCount"
+      text:
+        selector: "textHtml"

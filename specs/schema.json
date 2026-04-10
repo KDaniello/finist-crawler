@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Crawler Source Spec",
+  "type": "object",
+  "required": ["source_key", "version", "flow"],
+  "properties": {
+    "source_key": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "flow": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["seed", "list", "detail", "extract", "postprocess"]
+      }
+    },
+    "crawler": {
+      "type": "object",
+      "properties": {
+        "render": { "type": "string", "enum": ["browser", "static", "auto"] },
+        "impersonate": { "type": ["string", "null"] },
+        "rotate_fingerprint": { "type": "boolean" },
+        "warmup_urls": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "request_headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "max_pages": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Максимум страниц list-этапа"
+            },
+            "detail_max_pages": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Максимум страниц detail-этапа. 0 = без ограничений"
+            },
+            "request_timeout_sec": { "type": "integer", "minimum": 1 },
+            "render_wait_ms": { "type": "integer", "minimum": 0 },
+            "concurrency": { "type": "integer", "minimum": 1 },
+            "requests_per_second": { "type": "number", "minimum": 0.1 }
+          },
+          "additionalProperties": false
+        },
+        "list": {
+          "type": "object",
+          "properties": {
+            "start_urls": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "url_template": { "type": "string" },
+            "url_template_params": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            },
+            "extraction_mode": {
+              "type": "string",
+              "enum": [
+                "html", "json", "reddit", "steam",
+                "lenta_search", "lenta_article"
+              ],
+              "default": "html"
+            },
+            "item_selector": { "type": "string", "minLength": 1 },
+            "fields": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/fieldRule" }
+            },
+            "next_page": {
+              "type": "object",
+              "properties": {
+                "selector": { "type": "string", "minLength": 1 },
+                "attr": { "type": "string", "minLength": 1 }
+              }
+            },
+            "pagination": {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": ["link", "offset", "cursor", "steam_cursor"]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": ["item_selector", "fields"]
+        },
+        "detail": {
+          "type": "object",
+          "properties": {
+            "url_template": { "type": "string" },
+            "extraction_mode": {
+              "type": "string",
+              "enum": [
+                "html", "json", "reddit", "steam",
+                "lenta_search", "lenta_article"
+              ],
+              "default": "html"
+            },
+            "item_selector": { "type": "string", "minLength": 1 },
+            "fields": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/fieldRule" }
+            },
+            "next_page": {
+              "type": "object",
+              "properties": {
+                "selector": { "type": "string", "minLength": 1 },
+                "attr": { "type": "string", "minLength": 1 }
+              }
+            },
+            "pagination": {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": ["link", "offset", "cursor", "steam_cursor"]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": ["item_selector", "fields"]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "fieldRule": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "required": ["selector"],
+          "properties": {
+            "selector": { "type": "string", "minLength": 1 },
+            "attr": { "type": "string", "minLength": 1 },
+            "regex": { "type": "string", "minLength": 1 },
+            "required": { "type": "boolean" },
+            "default": {}
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

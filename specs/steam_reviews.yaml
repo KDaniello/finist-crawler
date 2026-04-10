@@ -1,0 +1,68 @@
+source_key: steam_reviews
+version: v1
+description: >
+  Парсер отзывов Steam через открытый API.
+  Пользователь указывает app_id (число из URL страницы игры на store.steampowered.com).
+  Название игры указывается вручную через game_name в config_overrides (необязательно).
+flow: [detail]
+
+crawler:
+  render: static
+  impersonate: chrome131
+
+  request_headers:
+    User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    Accept-Language: "ru-RU,ru;q=0.9,en;q=0.7"
+    Accept: "application/json, text/plain, */*"
+
+  limits:
+    max_pages: 1
+    detail_max_pages: 10
+    concurrency: 3
+    requests_per_second: 0.9
+    request_timeout_sec: 20
+
+  list:
+    # Фиктивный блок — flow: [detail] означает, что list пропускается.
+    # Обязателен для валидации schema.json.
+    url_template: "https://store.steampowered.com/appreviews/{app_id}?json=1&filter=recent&language=all&num_per_page=50&cursor=*&cc=RU&l=russian"
+    item_selector: "reviews"
+    fields:
+      detail_url:
+        selector: "recommendationid"
+
+  detail:
+    # {app_id} подставляется из config_overrides.template_params.app_id
+    url_template: "https://store.steampowered.com/appreviews/{app_id}?json=1&filter=recent&language=all&num_per_page=50&cursor=*&cc=RU&l=russian"
+    extraction_mode: steam
+
+    item_selector: "reviews"
+
+    fields:
+      review_id:
+        selector: "recommendationid"
+      author_steamid:
+        selector: "author.steamid"
+      playtime_at_review_hours:
+        selector: "author.playtime_at_review"
+      playtime_total_hours:
+        selector: "author.playtime_forever"
+      is_positive:
+        selector: "voted_up"
+      text:
+        selector: "review"
+      votes_up:
+        selector: "votes_up"
+      votes_funny:
+        selector: "votes_funny"
+      created_at:
+        selector: "timestamp_created"
+      language:
+        selector: "language"
+      steam_purchase:
+        selector: "steam_purchase"
+
+    pagination:
+      mode: steam_cursor
+    next_page:
+      selector: "cursor"

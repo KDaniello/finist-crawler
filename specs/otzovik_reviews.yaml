@@ -1,0 +1,62 @@
+source_key: otzovik_reviews
+version: v2
+description: Двухэтапный парсинг Отзовика (Camoufox - Точные селекторы)
+flow: [list, detail]
+
+crawler:
+  render: browser
+  request_headers:
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"
+    Accept-Language: "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
+    User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+  limits:
+    max_pages: 3
+    request_timeout_sec: 30
+    concurrency: 1
+    requests_per_second: 1.5 
+
+  list:
+    url_template: "https://otzovik.com/reviews/{keyword}/"
+    extraction_mode: html
+    item_selector: ".item[itemprop='review']" 
+    fields:
+      detail_url:
+        selector: "a.review-read-link, a.review-title"
+        attr: "href"
+    pagination:
+      mode: link
+    next_page:
+      selector: "a.next, .pager a.next"
+      attr: "href"
+
+  detail:
+    url_template: "https://otzovik.com{}"
+    extraction_mode: html
+    item_selector: "body"
+    fields:
+      title:
+        selector: ".item-right h1, .review-wrap h1"
+        
+      text:
+        selector: ".review-body.description, [itemprop='description'], [itemprop='reviewBody']"
+        
+      author:
+        selector: ".login-col [itemprop='name'], .user-login [itemprop='name']"
+        
+      rating:
+        # ФИКС: Ищем строго внутри блока оценки конкретного отзыва (reviewRating), 
+        # чтобы не зацепить среднюю оценку фильма (aggregateRating)
+        selector: "[itemprop='reviewRating'] meta[itemprop='ratingValue']"
+        attr: "content"
+        
+      created_at:
+        selector: "meta[itemprop='datePublished']"
+        attr: "content"
+        
+      likes:
+        selector: ".review-yes span, .votes-yes"
+        
+      comments:
+        selector: "meta[itemprop='commentCount']"
+        attr: "content"

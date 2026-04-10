@@ -1,0 +1,57 @@
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["core", "engine", "bots", "ui"]
+
+[tool.ruff.lint]
+select = [
+    "F",    # Pyflakes
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "ANN",  # annotations
+    "B",    # bugbear
+    "A",    # builtins shadowing
+    "SIM",  # simplify
+    "C4",   # comprehensions
+    "RET",  # return statements
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "ANN101",  # self не аннотируем
+    "ANN102",  # cls не аннотируем
+    "ANN401",  # Any разрешён (нужен для Protocol и межпроцессных данных)
+    "E501",    # длина строки — контролирует line-length выше
+    "B008",    # function call in default args (нужен для field(default_factory=...))
+]
+
+[tool.ruff.lint.per-file-ignores]
+"debug_runner.py" = ["ANN", "T20"]
+"**/tests/**" = ["ANN", "S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["core", "engine", "bots", "ui"]
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "first-party",
+    "local-folder",
+]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "camoufox.*",
+    "curl_cffi.*",
+    "browserforge.*",
+    "jmespath.*",
+    "rich.*",
+]
+ignore_missing_imports = true

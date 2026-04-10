@@ -1,0 +1,67 @@
+source_key: twogis_reviews
+version: v2
+description: Гибридный парсер 2GIS (HTML Поиск -> Извлечение ID Regex -> JSON API Отзывов)
+flow: [list, detail]
+
+crawler:
+  render: static
+  request_headers:
+    Origin: "https://2gis.ru"
+    Referer: "https://2gis.ru/"
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"
+    Accept-Language: "ru,en-US;q=0.9,en;q=0.8"
+    User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+  limits:
+    max_pages: 3 # Сколько страниц ПОИСКА мы пройдем
+    request_timeout_sec: 15
+
+  # =======================================================
+  # ЭТАП 1: ПОИСК (Парсим чистый HTML с сайта 2GIS)
+  # =======================================================
+  list:
+    # URL для ПЕРВОЙ страницы поиска. {keyword} подставляется ботом.
+    url_template: "https://2gis.ru/moscow/search/{keyword}/page/1"
+    extraction_mode: html
+    
+    # Селектор любых ссылок на фирмы в выдаче
+    item_selector: "a[href*='/firm/']"
+    
+    fields:
+      detail_url:
+        selector: ":self"
+        attr: "href"
+        # НОВАЯ СУПЕРСИЛА: Вытаскиваем только цифры ID из ссылки /moscow/firm/4504127908559765?m=...
+        regex: "firm/(\\d+)"
+        
+    # Инкремент /page/1 -> /page/2
+    pagination:
+      mode: offset
+    next_page:
+      attr: "1"
+
+  # =======================================================
+  # ЭТАП 2: СБОР ОТЗЫВОВ (Через открытый JSON API)
+  # =======================================================
+  detail:
+    # {} - сюда движок подставит ID из поля detail_url (из 1 этапа).
+    url_template: "https://public-api.reviews.2gis.com/3.0/branches/{}/reviews?limit=50&offset=0&is_advertiser=false&fields=meta.providers,meta.branch_rating,meta.branch_reviews_count,meta.total_count,reviews.hiding_reason,reviews.emojis,reviews.trust_factors&without_my_first_review=false&rated=true&sort_by=trust&key=6e7e1929-4ea9-4a5d-8c05-d601860389bd&locale=ru_RU"
+    extraction_mode: json
+    item_selector: "reviews"
+    fields:
+      external_id:
+        selector: "id"
+      text:
+        selector: "text"
+      author:
+        selector: "user.name"
+      created_at:
+        selector: "date_created"
+      rating:
+        selector: "rating"
+
+    # Инкремент offset=0 -> offset=50
+    pagination:
+      mode: offset
+    next_page:
+      attr: "50"

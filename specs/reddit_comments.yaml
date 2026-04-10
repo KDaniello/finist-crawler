@@ -1,0 +1,52 @@
+source_key: reddit_discussions
+version: v3
+description: Умный рекурсивный JSON-скрапер Reddit
+flow: [list, detail]
+
+crawler:
+  render: auto
+  rotate_fingerprint: true
+  warmup_urls:
+    - "https://www.reddit.com/"
+    - "https://old.reddit.com/"
+  impersonate: chrome124
+  
+  request_headers:
+    User-Agent: "FinistCrawlerBot/2.0 (Research Project)"
+    Accept: "application/json"
+
+  limits:
+    max_pages: 2  
+    request_timeout_sec: 15
+    concurrency: 2
+    requests_per_second: 1.0
+
+  list:
+    url_template: "https://www.reddit.com/r/all/search.json?q={keyword}&type=link&limit=100"
+    extraction_mode: json
+    item_selector: "data.children[*].data"
+    
+    fields:
+      detail_url:
+        selector: "permalink"
+
+    pagination:
+      mode: cursor 
+    next_page:
+      selector: "data.after"
+
+  detail:
+    url_template: "https://www.reddit.com{}.json"
+    extraction_mode: reddit
+    
+    item_selector: "none"
+    
+    fields:
+      author:
+        selector: "author"
+      text:
+        selector: "body"
+      likes:
+        selector: "score"
+      created_at:
+        selector: "created_utc"

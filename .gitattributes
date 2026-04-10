@@ -1,0 +1,34 @@
+# ============================================================
+# Finist Crawler — Git Attributes
+# Нормализация line endings: LF везде, кроме Windows-специфики
+# ============================================================
+
+# Автоопределение
+* text=auto
+
+# Python / YAML / JSON / Markdown → строго LF
+*.py    text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+*.toml  text eol=lf
+*.cfg   text eol=lf
+*.ini   text eol=lf
+*.spec  text eol=lf
+
+# Бинарники → без конвертации
+*.ico   binary
+*.ttf   binary
+*.otf   binary
+*.woff  binary
+*.woff2 binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.exe   binary
+*.dll   binary
+*.pyd   binary
+*.so    binary
