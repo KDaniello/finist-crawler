@@ -15,7 +15,7 @@
 
 ---
 
-🌐 Русский | [English](README.md)
+🌐 Русский | [English](README_EN.md)
 
 ---
 
