@@ -8,7 +8,7 @@
 
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from pytest_httpserver import HTTPServer
@@ -39,7 +39,7 @@ def prevent_real_browser_launch(monkeypatch):
         "engine.executors.stealth.ImmortalBrowser.__aenter__", AsyncMock(return_value=mock_browser)
     )
     monkeypatch.setattr("engine.executors.stealth.ImmortalBrowser.__aexit__", AsyncMock())
-    monkeypatch.setattr("engine.executors.stealth.is_captcha_page", AsyncMock(return_value=False))
+    monkeypatch.setattr("engine.executors.stealth.is_captcha_html", MagicMock(return_value=False))
 
 
 @pytest.fixture
