@@ -1,5 +1,7 @@
 # ruff: noqa: RUF002
 
+from __future__ import annotations
+
 import logging
 import logging.handlers
 import multiprocessing
@@ -15,18 +17,11 @@ from typing import Any
 import requests  # type: ignore[import-untyped]
 
 __all__ = [
-    "add_handler_to_listener",
-    "setup_main_logging",
+    "LogManager",
     "setup_worker_logging",
-    "stop_main_logging",
 ]
 
-# Глобальный слушатель для главного процесса
-_log_listener: logging.handlers.QueueListener | None = None
 
-
-# SPAWN-SAFE: handler exists only in main process via QueueListener.
-#  threading.Thread/Event are correct here — never pickled.
 class AsyncDiscordHandler(logging.Handler):
     """
     Асинхронный хендлер для Discord.
@@ -40,7 +35,6 @@ class AsyncDiscordHandler(logging.Handler):
         self._queue: queue.Queue[dict[str, Any] | None] = queue.Queue()
         self._stop_event = threading.Event()
 
-        # Запускаем локальный воркер
         self._thread = threading.Thread(
             target=self._worker_loop, daemon=True, name="DiscordLogWorker"
         )
@@ -50,19 +44,18 @@ class AsyncDiscordHandler(logging.Handler):
         """Фоновый цикл отправки логов. Завершается при получении None."""
         while not self._stop_event.is_set():
             try:
-                # Ждем 1 секунду, чтобы регулярно проверять _stop_event
                 item = self._queue.get(timeout=1.0)
             except queue.Empty:
                 continue
 
-            if item is None:  # Sentinel-значение для остановки
+            if item is None:
                 self._queue.task_done()
                 break
 
             try:
                 requests.post(self.webhook_url, json=item, timeout=5)
             except Exception:
-                pass  # Логгер не должен ломать приложение при ошибках сети
+                pass
             finally:
                 self._queue.task_done()
 
@@ -115,64 +108,94 @@ def _handle_exceptions(
     )
 
 
-def setup_main_logging(
-    logs_dir: Path,
-    debug: bool = False,
-    app_name: str = "Finist Crawler",
-    discord_webhook_url: str | None = None,
-) -> multiprocessing.Queue[logging.LogRecord]:
+class LogManager:
     """
-    Настройка логирования для ГЛАВНОГО процесса (UI/Dispatcher).
-    Создает QueueListener, который пишет логи в файл, консоль и Discord.
-    Возвращает multiprocessing.Queue, которую нужно передавать воркерам.
+    Управление логированием главного процесса.
+    Инкапсулирует QueueListener как атрибут экземпляра — без глобального singleton.
     """
-    global _log_listener
 
-    # Очередь для межпроцессного взаимодействия (MP-safe)
-    log_queue: multiprocessing.Queue[logging.LogRecord] = multiprocessing.Queue()
-    logs_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self) -> None:
+        self._listener: logging.handlers.QueueListener | None = None
 
-    formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)-8s | %(processName)-12s | %(name)s | %(message)s"
-    )
-    level = logging.DEBUG if debug else logging.INFO
+    def setup(
+        self,
+        logs_dir: Path,
+        debug: bool = False,
+        app_name: str = "Finist Crawler",
+        discord_webhook_url: str | None = None,
+    ) -> multiprocessing.Queue[logging.LogRecord]:
+        """
+        Настройка логирования для ГЛАВНОГО процесса (UI/Dispatcher).
+        Создает QueueListener, который пишет логи в файл, консоль и Discord.
+        Возвращает multiprocessing.Queue, которую нужно передавать воркерам.
+        """
+        log_queue: multiprocessing.Queue[logging.LogRecord] = multiprocessing.Queue()
+        logs_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Файловый хендлер
-    file_handler = logging.handlers.RotatingFileHandler(
-        logs_dir / "finist.log",
-        maxBytes=5 * 1024 * 1024,
-        backupCount=3,
-        encoding="utf-8",
-    )
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(level)
+        formatter = logging.Formatter(
+            "%(asctime)s | %(levelname)-8s | %(processName)-12s | %(name)s | %(message)s"
+        )
+        level = logging.DEBUG if debug else logging.INFO
 
-    # 2. Консольный хендлер
-    stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setFormatter(formatter)
-    stream_handler.setLevel(level)
+        file_handler = logging.handlers.RotatingFileHandler(
+            logs_dir / "finist.log",
+            maxBytes=5 * 1024 * 1024,
+            backupCount=3,
+            encoding="utf-8",
+        )
+        file_handler.setFormatter(formatter)
+        file_handler.setLevel(level)
 
-    handlers: list[logging.Handler] = [file_handler, stream_handler]
+        stream_handler = logging.StreamHandler(sys.stdout)
+        stream_handler.setFormatter(formatter)
+        stream_handler.setLevel(level)
 
-    # 3. Discord хендлер
-    if discord_webhook_url:
-        discord_handler = AsyncDiscordHandler(webhook_url=discord_webhook_url, app_name=app_name)
-        discord_handler.setLevel(logging.ERROR)
-        handlers.append(discord_handler)
+        handlers: list[logging.Handler] = [file_handler, stream_handler]
 
-    # Настраиваем корневой логгер главного процесса (пишет только в очередь!)
-    root = logging.getLogger()
-    root.setLevel(level)
-    root.handlers = []
-    root.addHandler(logging.handlers.QueueHandler(log_queue))
+        if discord_webhook_url:
+            discord_handler = AsyncDiscordHandler(webhook_url=discord_webhook_url, app_name=app_name)
+            discord_handler.setLevel(logging.ERROR)
+            handlers.append(discord_handler)
 
-    # Запускаем слушателя, который физически пишет в файлы и сеть
-    _log_listener = logging.handlers.QueueListener(log_queue, *handlers, respect_handler_level=True)
-    _log_listener.start()
+        root = logging.getLogger()
+        root.setLevel(level)
+        root.handlers = []
+        root.addHandler(logging.handlers.QueueHandler(log_queue))
 
-    sys.excepthook = _handle_exceptions
+        self._listener = logging.handlers.QueueListener(log_queue, *handlers, respect_handler_level=True)
+        self._listener.start()
 
-    return log_queue
+        sys.excepthook = _handle_exceptions
+
+        return log_queue
+
+    def add_handler(self, handler: logging.Handler) -> bool:
+        """
+        Добавляет хендлер в активный QueueListener.
+
+        Потокобезопасно. Используется UI для подключения
+        кастомных хендлеров после инициализации логгера.
+
+        Args:
+            handler: Хендлер для добавления.
+
+        Returns:
+            True если хендлер успешно добавлен.
+            False если listener не запущен (логгер ещё не инициализирован).
+        """
+        if self._listener is None:
+            return False
+        current = list(self._listener.handlers)
+        self._listener.handlers = (*current, handler)
+        return True
+
+    def stop(self) -> None:
+        """Корректное завершение записи логов и освобождение файлов/потоков."""
+        if self._listener:
+            self._listener.stop()
+            for handler in self._listener.handlers:
+                handler.close()
+            self._listener = None
 
 
 def setup_worker_logging(log_queue: multiprocessing.Queue[logging.LogRecord], debug: bool = False) -> None:
@@ -185,35 +208,3 @@ def setup_worker_logging(log_queue: multiprocessing.Queue[logging.LogRecord], de
     root.setLevel(level)
     root.handlers = []
     root.addHandler(logging.handlers.QueueHandler(log_queue))
-
-
-def add_handler_to_listener(handler: logging.Handler) -> bool:
-    """
-    Добавляет хендлер в активный QueueListener.
-
-    Потокобезопасно. Используется UI для подключения
-    кастомных хендлеров после инициализации логгера.
-
-    Args:
-        handler: Хендлер для добавления.
-
-    Returns:
-        True если хендлер успешно добавлен.
-        False если listener не запущен (логгер ещё не инициализирован).
-    """
-    global _log_listener
-    if _log_listener is None:
-        return False
-    current = list(_log_listener.handlers)
-    _log_listener.handlers = (*current, handler)
-    return True
-
-
-def stop_main_logging() -> None:
-    """Корректное завершение записи логов и освобождение файлов/потоков."""
-    global _log_listener
-    if _log_listener:
-        _log_listener.stop()
-        for handler in _log_listener.handlers:
-            handler.close()
-        _log_listener = None

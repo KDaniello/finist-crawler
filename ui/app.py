@@ -10,9 +10,10 @@ from typing import Any
 import flet as ft
 
 from core import get_paths, get_settings, setup_environment
+from core._openpyxl_compat import apply_openpyxl_compat
 from core.dispatcher import Dispatcher
 from core.file_manager import SessionManager
-from core.logger import setup_main_logging, stop_main_logging
+from core.logger import LogManager
 from core.resources import SystemMonitor
 from ui.theme import ThemeController
 
@@ -62,7 +63,10 @@ class AppController:
         self._paths = get_paths()
         self._settings = get_settings()
 
-        self._log_queue = setup_main_logging(
+        apply_openpyxl_compat()
+
+        self.log_manager = LogManager()
+        self._log_queue = self.log_manager.setup(
             logs_dir=self._paths.logs_dir,
             debug=self._settings.DEBUG,
         )
@@ -115,7 +119,7 @@ class AppController:
 
     def cleanup(self) -> None:
         self.stop_parsing()
-        stop_main_logging()
+        self.log_manager.stop()
         self._log_queue.close()
         self._log_queue.cancel_join_thread()
 
