@@ -58,17 +58,14 @@ def mock_save_cb():
 
 @pytest.fixture
 def mock_profile_manager():
-    """Мокает ProfileManager и возвращает объект сессии."""
-    with patch("engine.executors.stealth.ProfileManager") as MockPM:
-        mock_mgr = MagicMock()
-        mock_session = MagicMock()
-        mock_session.session_id = "test_session_123"
-        mock_session.should_rotate = False
+    mock_mgr = MagicMock()
+    mock_session = MagicMock()
+    mock_session.session_id = "test_session_123"
+    mock_session.should_rotate = False
 
-        mock_mgr.acquire.return_value = mock_session
-        MockPM.return_value = mock_mgr
+    mock_mgr.acquire.return_value = mock_session
 
-        yield mock_mgr, mock_session
+    yield mock_mgr, mock_session
 
 
 @pytest.fixture
@@ -104,7 +101,7 @@ class TestStealthExecutorBase:
 class TestWaitForCaptcha:
     @pytest.mark.asyncio
     @patch("asyncio.sleep", new_callable=AsyncMock)
-    @patch("engine.executors.stealth.is_captcha_page")
+    @patch("engine.executors.stealth.is_captcha_html")
     async def test_wait_resolves_captcha(self, mock_is_captcha, mock_sleep, executor, mock_browser):
         """Проверяет, что капча проходится, если is_captcha_page становится False."""
         mock_is_captcha.side_effect = [True, False]
@@ -116,7 +113,7 @@ class TestWaitForCaptcha:
 
     @pytest.mark.asyncio
     @patch("asyncio.sleep", new_callable=AsyncMock)
-    @patch("engine.executors.stealth.is_captcha_page", return_value=True)
+    @patch("engine.executors.stealth.is_captcha_html", return_value=True)
     async def test_wait_times_out(self, mock_is_captcha, mock_sleep, executor, mock_browser):
         """Если таймаут исчерпан, возвращает False."""
         result = await executor._wait_for_captcha(mock_browser, timeout=10)
@@ -131,7 +128,7 @@ class TestWaitForCaptcha:
 
 @pytest.mark.asyncio
 @patch("asyncio.sleep", new_callable=AsyncMock)
-@patch("engine.executors.stealth.is_captcha_page", return_value=False)
+@patch("engine.executors.stealth.is_captcha_html", return_value=False)
 @patch("engine.executors.stealth.parse_page")
 class TestStealthExecutorExecute:
     async def test_execute_success_flow(
