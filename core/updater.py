@@ -128,7 +128,7 @@ class SpecUpdater:
                     results = await asyncio.gather(*tasks)
 
                     # 4. Обновляем локальный манифест только для УСПЕШНО скачанных файлов
-                    for (filename, new_version), success in zip(files_to_update, results):
+                    for (filename, new_version), success in zip(files_to_update, results, strict=True):
                         if success:
                             local_versions[filename] = new_version
                             updated_files.append(filename)

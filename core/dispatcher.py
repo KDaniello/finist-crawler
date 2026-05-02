@@ -119,7 +119,7 @@ class Dispatcher:
                 proc.terminate()
 
         # Шаг 2: Ждем, давая время на сброс буферов и логов
-        for spec, proc in self._active_processes.items():
+        for _, proc in self._active_processes.items():
             proc.join(timeout=3.0)
 
         # Шаг 3: Если процесс завис (например, мертвый лок Camoufox), убиваем жестко (SIGKILL)
