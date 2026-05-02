@@ -1,5 +1,7 @@
 # ruff: noqa: RUF002
 
+from __future__ import annotations
+
 import logging
 import logging.handlers
 import multiprocessing
