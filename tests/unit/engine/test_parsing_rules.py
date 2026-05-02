@@ -113,7 +113,7 @@ class TestBuildPlan:
                 "render": "playwright",
             }
         }
-        overrides = {"start_urls": ["http://override.com"], "max_pages": 2}
+        overrides = {"direct_urls": ["http://override.com"], "max_pages": 2}
 
         plan = build_plan(spec, overrides)
 

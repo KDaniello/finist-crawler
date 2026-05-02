@@ -270,7 +270,7 @@ class TestBuildPlanIntegration:
         spec_data = load_spec("override_test", specs_dir)
 
         # Пользователь вводит другие URL через UI
-        overrides = {"start_urls": ["https://custom-user-input.com/page/1"], "max_pages": 3}
+        overrides = {"direct_urls": ["https://custom-user-input.com/page/1"], "max_pages": 3}
         plan = build_plan(spec_data, config_overrides=overrides)
 
         assert plan.start_urls == ["https://custom-user-input.com/page/1"]
