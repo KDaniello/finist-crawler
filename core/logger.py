@@ -1,3 +1,5 @@
+# ruff: noqa: RUF002
+
 import logging
 import logging.handlers
 import multiprocessing
@@ -5,10 +7,12 @@ import queue
 import sys
 import threading
 import traceback
+import types
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 __all__ = [
     "add_handler_to_listener",
@@ -29,11 +33,11 @@ class AsyncDiscordHandler(logging.Handler):
     Инкапсулирует свою внутреннюю очередь и поток, не засоряя глобальное пространство.
     """
 
-    def __init__(self, webhook_url: str, app_name: str):
+    def __init__(self, webhook_url: str, app_name: str) -> None:
         super().__init__()
         self.webhook_url = webhook_url
         self.app_name = app_name
-        self._queue: queue.Queue = queue.Queue()
+        self._queue: queue.Queue[dict[str, Any] | None] = queue.Queue()
         self._stop_event = threading.Event()
 
         # Запускаем локальный воркер
@@ -67,21 +71,23 @@ class AsyncDiscordHandler(logging.Handler):
             return
 
         try:
-            embed = {
+            fields: list[dict[str, str | bool]] = [
+                {"name": "Module", "value": record.module, "inline": True},
+                {"name": "Process", "value": record.processName or "", "inline": True},
+            ]
+            if record.exc_info:
+                tb = "".join(traceback.format_exception(*record.exc_info))
+                fields.append(
+                    {"name": "Traceback", "value": f"```{tb[-1000:]}```", "inline": False}
+                )
+
+            embed: dict[str, Any] = {
                 "title": f"🚨 {record.levelname}: {self.app_name}",
                 "description": f"**Msg:** {record.getMessage()}",
                 "color": 0xFF0000,
-                "fields": [
-                    {"name": "Module", "value": record.module, "inline": True},
-                    {"name": "Process", "value": record.processName, "inline": True},
-                ],
+                "fields": fields,
                 "timestamp": datetime.now(UTC).isoformat(),
             }
-            if record.exc_info:
-                tb = "".join(traceback.format_exception(*record.exc_info))
-                embed["fields"].append(
-                    {"name": "Traceback", "value": f"```{tb[-1000:]}```", "inline": False}
-                )
 
             self._queue.put({"embeds": [embed]})
         except Exception:
@@ -95,13 +101,17 @@ class AsyncDiscordHandler(logging.Handler):
         super().close()
 
 
-def _handle_exceptions(exc_type, exc_value, exc_traceback) -> None:
+def _handle_exceptions(
+    exc_type: type[BaseException],
+    exc_value: BaseException | None,
+    exc_traceback: types.TracebackType | None,
+) -> None:
     """Глобальный перехватчик критических ошибок."""
     if issubclass(exc_type, KeyboardInterrupt):
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)  # type: ignore[arg-type]
         return
     logging.critical(
-        "Критическая необработанная ошибка:", exc_info=(exc_type, exc_value, exc_traceback)
+        "Критическая необработанная ошибка:", exc_info=(exc_type, exc_value, exc_traceback)  # type: ignore[arg-type]
     )
 
 
@@ -110,7 +120,7 @@ def setup_main_logging(
     debug: bool = False,
     app_name: str = "Finist Crawler",
     discord_webhook_url: str | None = None,
-) -> multiprocessing.Queue:
+) -> multiprocessing.Queue[logging.LogRecord]:
     """
     Настройка логирования для ГЛАВНОГО процесса (UI/Dispatcher).
     Создает QueueListener, который пишет логи в файл, консоль и Discord.
@@ -119,7 +129,7 @@ def setup_main_logging(
     global _log_listener
 
     # Очередь для межпроцессного взаимодействия (MP-safe)
-    log_queue = multiprocessing.Queue()
+    log_queue: multiprocessing.Queue[logging.LogRecord] = multiprocessing.Queue()
     logs_dir.mkdir(parents=True, exist_ok=True)
 
     formatter = logging.Formatter(
@@ -165,7 +175,7 @@ def setup_main_logging(
     return log_queue
 
 
-def setup_worker_logging(log_queue: multiprocessing.Queue, debug: bool = False) -> None:
+def setup_worker_logging(log_queue: multiprocessing.Queue[logging.LogRecord], debug: bool = False) -> None:
     """
     Настройка логирования для ВОРКЕРА (запускается в начале каждого нового Process).
     Воркер НЕ трогает файлы, он только перекидывает логи в очередь главного процесса.
@@ -195,7 +205,7 @@ def add_handler_to_listener(handler: logging.Handler) -> bool:
     if _log_listener is None:
         return False
     current = list(_log_listener.handlers)
-    _log_listener.handlers = tuple(current + [handler])
+    _log_listener.handlers = (*current, handler)
     return True
 
 
