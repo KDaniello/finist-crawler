@@ -46,7 +46,7 @@ set how much to collect and which keywords to use.
 | Lenta.ru    | News articles                | API (curl_cffi)    | 1.2 rec/s    | 88+                 |
 | Otzovik     | Product and service reviews  | Browser (Camoufox) | ~0.3 rec/s   | depends on page     |
 
-Results measured on a Windows 11 test machine, Python 3.11, no proxy.
+Results measured on a Windows 11 test machine, Python 3.13, no proxy.
 Speed varies depending on your internet connection and server load.
 
 ---
