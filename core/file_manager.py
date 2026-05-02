@@ -1,7 +1,7 @@
 import csv
 import json
 import logging
-import threading
+import multiprocessing
 from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
@@ -86,13 +86,19 @@ def _clean_for_excel(value: Any) -> Any:
 
 
 class DataWriter:
-    def __init__(self, base_dir: Path, session_id: str, source: str) -> None:
+    def __init__(
+        self,
+        base_dir: Path,
+        session_id: str,
+        source: str,
+        lock: multiprocessing.synchronize.Lock,
+    ) -> None:
         self.session_id = session_id
         self.source = source
         self.base_dir = base_dir
         self.source_dir = self.base_dir / session_id / source
         self.jsonl_path = self.source_dir / f"{source}.jsonl"
-        self._lock = threading.Lock()
+        self._lock = lock
 
     def save_batch(self, data: Iterable[dict[str, Any]]) -> None:
         records = list(data)

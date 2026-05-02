@@ -36,7 +36,12 @@ def run_universal_bot(
             )
 
             # 2. Инициализация писателя
-            writer = DataWriter(base_dir=paths.data_dir, session_id=session_id, source=source_key)
+            writer = DataWriter(
+                base_dir=paths.data_dir,
+                session_id=session_id,
+                source=source_key,
+                lock=multiprocessing.Lock(),
+            )
 
             def save_records(records: list[dict[str, Any]]) -> None:
                 if records:
