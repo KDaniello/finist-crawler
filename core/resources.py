@@ -62,7 +62,7 @@ class SystemMonitor:
         и всех его дочерних воркеров (включая ветвистые процессы браузера Camoufox).
         """
         try:
-            total_bytes = self._main_process.memory_info().rss
+            total_bytes: int = self._main_process.memory_info().rss
 
             # recursive=True критически важно для Playwright, так как он плодит
             # процессы (Broker, Utility, Renderer) в глубину дерева процессов.
