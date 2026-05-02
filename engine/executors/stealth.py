@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from collections import defaultdict, deque
+from pathlib import Path
 from urllib.parse import urlparse
 
 from playwright.async_api import Error as PlaywrightError
@@ -22,7 +23,7 @@ class StealthExecutor:
     def name(self) -> str:
         return "StealthExecutor (Camoufox)"
 
-    def __init__(self, browser_lock, profiles_dir: str) -> None:
+    def __init__(self, browser_lock, profiles_dir: Path) -> None:
         self._browser_lock = browser_lock
         self._profiles_dir = profiles_dir
         self._max_retries = 2
@@ -69,14 +70,11 @@ class StealthExecutor:
         await asyncio.to_thread(self._browser_lock.acquire)
 
         try:
-            from pathlib import Path
-
-            p_dir = Path(self._profiles_dir)
-            p_dir.mkdir(parents=True, exist_ok=True)
+            self._profiles_dir.mkdir(parents=True, exist_ok=True)
 
             async with ImmortalBrowser(
                 domain=domain,
-                profiles_dir=p_dir,
+                profiles_dir=self._profiles_dir,
                 headless=False,
                 proxy_url=proxy_url,
                 block_media=False,
