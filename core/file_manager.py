@@ -143,8 +143,10 @@ class DataWriter:
         это необходимо для корректного отображения в Excel/LibreOffice.
         Для полного текста со структурой используйте XLSX.
         """
-        with open(self.jsonl_path, encoding="utf-8") as fin:
-            with open(output_path, "w", encoding="utf-8-sig", newline="") as fout:
+        with (
+            open(self.jsonl_path, encoding="utf-8") as fin,
+            open(output_path, "w", encoding="utf-8-sig", newline="") as fout,
+        ):
                 writer = None
                 for line in fin:
                     if not line.strip():

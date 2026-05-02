@@ -36,7 +36,7 @@ class NetworkError(FinistError):
 class RateLimitError(FinistError):
     """Получен статус 429 (Too Many Requests). Требуется пауза."""
 
-    def __init__(self, url: str, retry_after: int = 5):
+    def __init__(self, url: str, retry_after: int = 5) -> None:
         self.url = url
         self.retry_after = retry_after
         super().__init__(f"Превышен лимит запросов к {url}. Пауза {retry_after}с.")
@@ -48,7 +48,7 @@ class CaptchaBlockError(FinistError):
     Служит триггером для перехода на StealthExecutor (Camoufox).
     """
 
-    def __init__(self, url: str, detail: str = ""):
+    def __init__(self, url: str, detail: str = "") -> None:
         self.url = url
         self.detail = detail
         super().__init__(f"Обнаружена защита (Капча/Блок) на {url}: {detail}")
