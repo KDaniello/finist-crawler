@@ -20,7 +20,7 @@ class WorkerCallable(Protocol):
         spec_name: str,
         session_id: str,
         config_overrides: dict[str, Any],
-        log_queue: multiprocessing.Queue,
+        log_queue: multiprocessing.Queue[Any],
         browser_lock: LockType,
     ) -> None: ...
 
@@ -43,7 +43,7 @@ class Dispatcher:
     """
 
     def __init__(
-        self, session_manager: SessionManagerProtocol, log_queue: multiprocessing.Queue
+        self, session_manager: SessionManagerProtocol, log_queue: multiprocessing.Queue[Any]
     ) -> None:
         # Строго фиксируем контекст spawn для стабильности в PyInstaller и одинакового поведения на всех ОС
         self._ctx = multiprocessing.get_context("spawn")
