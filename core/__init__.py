@@ -7,17 +7,6 @@
 Архитектура: Dependency Injection, Zero Global State.
 """
 
-try:
-    import openpyxl.compat.numbers
-
-    openpyxl.compat.numbers.NUMERIC_TYPES = (int, float)
-
-    import openpyxl.compat.strings
-
-    openpyxl.compat.strings.NUMERIC_TYPES = (int, float)
-except ImportError:  # pragma: no cover
-    pass  # pragma: no cover
-
 from .config import ProjectPaths, Settings, get_paths, get_settings, setup_environment
 from .dispatcher import Dispatcher, WorkerCallable
 from .exceptions import (
@@ -30,7 +19,7 @@ from .exceptions import (
 )
 from .file_manager import DataWriter, SessionManager
 from .job_config import JobConfig
-from .logger import setup_main_logging, setup_worker_logging, stop_main_logging
+from .logger import LogManager, setup_worker_logging
 from .resources import SystemMonitor
 from .telemetry import TelemetryEvent, TelemetryEventType
 from .updater import SpecUpdater
@@ -42,6 +31,7 @@ __all__ = [
     "Dispatcher",
     "FinistError",
     "JobConfig",
+    "LogManager",
     "NetworkError",
     "ParsingError",
     "ProjectPaths",
@@ -56,7 +46,5 @@ __all__ = [
     "get_paths",
     "get_settings",
     "setup_environment",
-    "setup_main_logging",
     "setup_worker_logging",
-    "stop_main_logging",
 ]

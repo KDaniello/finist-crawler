@@ -361,10 +361,8 @@ class MonitorPage:
 
             # Подключаем хендлер логов ОДИН РАЗ
             if self._ctrl._ui_log_handler is None:
-                from core.logger import add_handler_to_listener
-
                 handler = self._create_log_handler()
-                added = add_handler_to_listener(handler)
+                added = self._ctrl.log_manager.add_handler(handler)
                 if added:
                     self._ctrl._ui_log_handler = handler
 
