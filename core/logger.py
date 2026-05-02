@@ -21,6 +21,8 @@ __all__ = [
 _log_listener: logging.handlers.QueueListener | None = None
 
 
+# SPAWN-SAFE: handler exists only in main process via QueueListener.
+#  threading.Thread/Event are correct here — never pickled.
 class AsyncDiscordHandler(logging.Handler):
     """
     Асинхронный хендлер для Discord.
