@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import multiprocessing
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -58,8 +57,13 @@ class AppController:
     Не содержит UI-кода — только управление состоянием.
     """
 
-    def __init__(self, page: ft.Page) -> None:
+    def __init__(
+        self,
+        page: ft.Page,
+        worker_target: Callable[..., None] | None = None,
+    ) -> None:
         self.page = page
+        self._worker_target = worker_target
         self._paths = get_paths()
         self._settings = get_settings()
 
@@ -87,7 +91,9 @@ class AppController:
         self._ui_log_handler: logging.Handler | None = None
 
     def start_parsing(self, job_configs: list[Any]) -> bool:
-        from bots.universal_bot import run_universal_bot
+        if self._worker_target is None:
+            logger.error("worker_target не задан — невозможно запустить парсинг")
+            return False
 
         if self.dispatcher.is_running():
             logger.warning("Парсинг уже запущен")
@@ -100,7 +106,7 @@ class AppController:
         overrides = job_configs[0].to_dict()
 
         session_id = self.dispatcher.start_tasks(
-            worker_target=run_universal_bot,
+            worker_target=self._worker_target,
             specs=specs,
             config_overrides=overrides,
             settings=get_settings(),
@@ -254,7 +260,7 @@ def _build_nav_bar(
     )
 
 
-def main(page: ft.Page) -> None:
+def main(page: ft.Page, worker_target: Callable[..., None] | None = None) -> None:
     """Точка входа Flet приложения."""
     page.title = "Finist Crawler"
     page.theme_mode = ft.ThemeMode.DARK
@@ -268,7 +274,7 @@ def main(page: ft.Page) -> None:
         "JetBrains Mono": _resolve_font("assets/fonts/JetBrainsMono-Regular.ttf"),
     }
 
-    ctrl = AppController(page)
+    ctrl = AppController(page, worker_target=worker_target)
     page.bgcolor = ctrl.theme.tokens.bg_primary
     page.theme_mode = ft.ThemeMode.DARK if ctrl.theme.is_dark else ft.ThemeMode.LIGHT
 
@@ -339,9 +345,3 @@ def main(page: ft.Page) -> None:
     page.on_window_event = on_window_event
 
     navigate("launcher")
-
-
-if __name__ == "__main__":
-    multiprocessing.freeze_support()
-    setup_environment()
-    ft.app(target=main)

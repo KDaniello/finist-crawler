@@ -1,9 +1,8 @@
 # tests/unit/ui/test_app_controller.py
 """
-Tests for AppController — current API (page-only constructor).
+Tests for AppController — worker_target injected via constructor.
 
 Invariant: tests never import bots/ directly.
-bots.universal_bot is injected via sys.modules patch where needed.
 """
 
 from __future__ import annotations
@@ -51,7 +50,17 @@ def fake_settings() -> MagicMock:
 
 
 @pytest.fixture()
-def ctrl(fake_page: MagicMock, fake_paths: MagicMock, fake_settings: MagicMock) -> AppController:
+def fake_worker() -> MagicMock:
+    return MagicMock()
+
+
+@pytest.fixture()
+def ctrl(
+    fake_page: MagicMock,
+    fake_paths: MagicMock,
+    fake_settings: MagicMock,
+    fake_worker: MagicMock,
+) -> AppController:
     with (
         patch("ui.app.get_paths", return_value=fake_paths),
         patch("ui.app.get_settings", return_value=fake_settings),
@@ -62,14 +71,7 @@ def ctrl(fake_page: MagicMock, fake_paths: MagicMock, fake_settings: MagicMock) 
         patch("ui.app.SystemMonitor"),
     ):
         mock_log_mgr_cls.return_value.setup.return_value = MagicMock()
-        return AppController(page=fake_page)
-
-
-@pytest.fixture()
-def bot_mock() -> Generator[MagicMock]:
-    fake_module = MagicMock()
-    with patch.dict(sys.modules, {"bots": fake_module, "bots.universal_bot": fake_module}):
-        yield fake_module
+        return AppController(page=fake_page, worker_target=fake_worker)
 
 
 # ---------------------------------------------------------------------------
@@ -94,12 +96,11 @@ class TestAppControllerConstruction:
             patch("ui.app.SystemMonitor"),
         ):
             mock_log_mgr_cls.return_value.setup.return_value = MagicMock()
-            AppController(page=fake_page)
+            AppController(page=fake_page, worker_target=MagicMock())
 
         assert "bots.universal_bot" not in sys.modules
         assert "bots" not in sys.modules
 
-    @pytest.mark.xfail(reason="start_parsing imports bots.universal_bot — fix in T5.2")
     def test_no_bots_import_on_start_parsing(self, ctrl: AppController) -> None:
         sys.modules.pop("bots.universal_bot", None)
         sys.modules.pop("bots", None)
@@ -119,18 +120,38 @@ class TestAppControllerConstruction:
 
 
 class TestStartParsing:
-    def test_returns_false_when_running(self, ctrl: AppController, bot_mock: MagicMock) -> None:
+    def test_returns_false_when_running(self, ctrl: AppController) -> None:
         ctrl.dispatcher.is_running = MagicMock(return_value=True)  # type: ignore[method-assign]
         job = JobConfig(spec_name="habr_search.yaml")
         result = ctrl.start_parsing([job])
         assert result is False
 
-    def test_returns_false_for_empty_list(self, ctrl: AppController, bot_mock: MagicMock) -> None:
+    def test_returns_false_for_empty_list(self, ctrl: AppController) -> None:
         ctrl.dispatcher.is_running = MagicMock(return_value=False)  # type: ignore[method-assign]
         result = ctrl.start_parsing([])
         assert result is False
 
-    def test_returns_true_on_success(self, ctrl: AppController, bot_mock: MagicMock) -> None:
+    def test_returns_false_when_no_worker_target(
+        self, fake_page: MagicMock, fake_paths: MagicMock, fake_settings: MagicMock
+    ) -> None:
+        with (
+            patch("ui.app.get_paths", return_value=fake_paths),
+            patch("ui.app.get_settings", return_value=fake_settings),
+            patch("ui.app.apply_openpyxl_compat"),
+            patch("ui.app.LogManager") as mock_log_mgr_cls,
+            patch("ui.app.SessionManager"),
+            patch("ui.app.Dispatcher"),
+            patch("ui.app.SystemMonitor"),
+        ):
+            mock_log_mgr_cls.return_value.setup.return_value = MagicMock()
+            ctrl_no_worker = AppController(page=fake_page, worker_target=None)
+
+        ctrl_no_worker.dispatcher.is_running = MagicMock(return_value=False)  # type: ignore[method-assign]
+        job = JobConfig(spec_name="habr_search.yaml")
+        result = ctrl_no_worker.start_parsing([job])
+        assert result is False
+
+    def test_returns_true_on_success(self, ctrl: AppController) -> None:
         ctrl.dispatcher.is_running = MagicMock(return_value=False)  # type: ignore[method-assign]
         ctrl.dispatcher.start_tasks = MagicMock(return_value="session_ok")  # type: ignore[method-assign]
         job = JobConfig(spec_name="habr_search.yaml", max_pages=2)
