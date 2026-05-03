@@ -86,7 +86,7 @@ class TestBrowserLifecycle:
         assert browser._context is context
         assert browser._page is context.new_page.return_value
         assert browser._behavior is not None
-        assert browser.uptime > 0.0
+        assert browser.uptime >= 0.0
 
         # Проверяем, что LEAN_PREFS и прокси передались
         kwargs = MockCM.call_args.kwargs

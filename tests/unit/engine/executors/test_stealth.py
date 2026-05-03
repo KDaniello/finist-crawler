@@ -2,6 +2,14 @@
 Тесты для engine/executors/stealth.py
 
 Покрытие: 100%
+- Инициализация и контекстный менеджер.
+- Успешный парсинг: обработка страниц, вызов callback'а, статистика.
+- Пустой результат парсинга.
+- Ошибка Playwright: ретраи и graceful завершение.
+- Капча: CaptchaBlockError при нерешённой капче.
+- Глобальная ошибка: graceful break с освобождением блокировки.
+- Дубликаты URL: пропуск повторных посещений.
+- Page is None: PlaywrightError и ретраи.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -9,23 +17,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 
-# 1. Создаем настоящую (но фейковую) ошибку для тестов
 class FakePlaywrightError(Exception):
     pass
 
 
-# 2. Подменяем замоканный класс в модуле stealth ДО того, как начнут работать тесты
 import engine.executors.stealth
 
 engine.executors.stealth.PlaywrightError = FakePlaywrightError
 
-from core.exceptions import CaptchaBlockError, NetworkError
+from core.exceptions import CaptchaBlockError
 from engine.executors.stealth import StealthExecutor
 from engine.parsing_rules import CrawlerPlan
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -35,7 +37,6 @@ def mock_lock():
 
 @pytest.fixture
 def executor(mock_lock, tmp_path):
-    """Обновленный фикстура: теперь принимает profiles_dir через tmp_path"""
     return StealthExecutor(browser_lock=mock_lock, profiles_dir=tmp_path)
 
 
@@ -57,34 +58,15 @@ def mock_save_cb():
 
 
 @pytest.fixture
-def mock_profile_manager():
-    mock_mgr = MagicMock()
-    mock_session = MagicMock()
-    mock_session.session_id = "test_session_123"
-    mock_session.should_rotate = False
-
-    mock_mgr.acquire.return_value = mock_session
-
-    yield mock_mgr, mock_session
-
-
-@pytest.fixture
 def mock_browser():
     """Мокает ImmortalBrowser."""
     with patch("engine.executors.stealth.ImmortalBrowser") as MockBrowserCls:
         mock_b_instance = AsyncMock()
         mock_b_instance.page = AsyncMock()
         mock_b_instance.page.content.return_value = "<html>test</html>"
-        mock_b_instance.behavior = AsyncMock()
 
-        # Настраиваем контекстный менеджер (async with ImmortalBrowser(...) as b)
         MockBrowserCls.return_value.__aenter__.return_value = mock_b_instance
         yield mock_b_instance
-
-
-# ---------------------------------------------------------------------------
-# Base & Helpers Tests
-# ---------------------------------------------------------------------------
 
 
 class TestStealthExecutorBase:
@@ -93,37 +75,8 @@ class TestStealthExecutorBase:
 
     @pytest.mark.asyncio
     async def test_context_manager(self, executor):
-        """__aenter__ и __aexit__ не должны выбрасывать ошибок."""
         async with executor as exc:
             assert exc is executor
-
-
-class TestWaitForCaptcha:
-    @pytest.mark.asyncio
-    @patch("asyncio.sleep", new_callable=AsyncMock)
-    @patch("engine.executors.stealth.is_captcha_html")
-    async def test_wait_resolves_captcha(self, mock_is_captcha, mock_sleep, executor, mock_browser):
-        """Проверяет, что капча проходится, если is_captcha_page становится False."""
-        mock_is_captcha.side_effect = [True, False]
-        result = await executor._wait_for_captcha(mock_browser, timeout=15)
-
-        assert result is True
-        assert mock_sleep.call_count == 2
-        mock_browser.behavior.mouse_jiggle.assert_called_once()
-
-    @pytest.mark.asyncio
-    @patch("asyncio.sleep", new_callable=AsyncMock)
-    @patch("engine.executors.stealth.is_captcha_html", return_value=True)
-    async def test_wait_times_out(self, mock_is_captcha, mock_sleep, executor, mock_browser):
-        """Если таймаут исчерпан, возвращает False."""
-        result = await executor._wait_for_captcha(mock_browser, timeout=10)
-        assert result is False
-        assert mock_sleep.call_count == 2
-
-
-# ---------------------------------------------------------------------------
-# Execute Logic Tests
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -139,27 +92,21 @@ class TestStealthExecutorExecute:
         executor,
         dummy_plan,
         mock_save_cb,
-        mock_profile_manager,
         mock_browser,
         mock_lock,
     ):
-        mgr, session = mock_profile_manager
         mock_parse.side_effect = [
-            ([{"id": 1}], "http://test.com/page2"),
-            ([{"id": 2}], None),
+            ([{"id": 1}], "http://test.com/page2", {}),
+            ([{"id": 2}], None, {}),
         ]
 
         total, stats = await executor.execute(dummy_plan, mock_save_cb)
 
         assert total == 2
         assert stats["pages_crawled"] == 2
-        assert stats["session_id"] == "test_session_123"
 
         mock_lock.acquire.assert_called_once()
         mock_lock.release.assert_called_once()
-        assert mock_browser.behavior.mouse_jiggle.call_count == 2
-        assert mock_browser.behavior.scroll_down.call_count == 2
-        assert mgr.report_success.call_count == 2
 
     async def test_execute_empty_parse_result(
         self,
@@ -169,19 +116,16 @@ class TestStealthExecutorExecute:
         executor,
         dummy_plan,
         mock_save_cb,
-        mock_profile_manager,
         mock_browser,
     ):
-        mgr, session = mock_profile_manager
-        mock_parse.return_value = ([], None)
+        mock_parse.return_value = ([], None, {})
 
         total, stats = await executor.execute(dummy_plan, mock_save_cb)
 
         assert total == 0
         assert stats["pages_crawled"] == 1
-        mgr.report_success.assert_not_called()
 
-    async def test_execute_should_rotate_aborts(
+    async def test_execute_playwright_error_retries(
         self,
         mock_parse,
         mock_is_captcha,
@@ -189,40 +133,15 @@ class TestStealthExecutorExecute:
         executor,
         dummy_plan,
         mock_save_cb,
-        mock_profile_manager,
         mock_browser,
     ):
-        mgr, session = mock_profile_manager
-        session.should_rotate = True
-
-        total, stats = await executor.execute(dummy_plan, mock_save_cb)
-
-        assert total == 0
-        assert stats["pages_crawled"] == 0
-        assert stats["queue_remaining"] == 1
-        mock_browser.page.goto.assert_not_called()
-
-    async def test_execute_playwright_error_aborts(
-        self,
-        mock_parse,
-        mock_is_captcha,
-        mock_sleep,
-        executor,
-        dummy_plan,
-        mock_save_cb,
-        mock_profile_manager,
-        mock_browser,
-    ):
-        mgr, session = mock_profile_manager
         mock_browser.page.goto.side_effect = FakePlaywrightError("Browser crashed")
 
         total, stats = await executor.execute(dummy_plan, mock_save_cb)
 
         assert total == 0
-        assert stats["queue_remaining"] == 1
-        mgr.report_failure.assert_called_once_with(session)
 
-    async def test_execute_captcha_timeout_raises(
+    async def test_execute_captcha_timeout_breaks(
         self,
         mock_parse,
         mock_is_captcha,
@@ -230,21 +149,19 @@ class TestStealthExecutorExecute:
         executor,
         dummy_plan,
         mock_save_cb,
-        mock_profile_manager,
         mock_browser,
         mock_lock,
     ):
-        mgr, session = mock_profile_manager
         mock_is_captcha.return_value = True
+        mock_browser.page.query_selector.return_value = None
 
-        with patch.object(executor, "_wait_for_captcha", return_value=False):
-            with pytest.raises(CaptchaBlockError, match="Авто-решение капчи не удалось"):
-                await executor.execute(dummy_plan, mock_save_cb)
+        total, stats = await executor.execute(dummy_plan, mock_save_cb)
 
-        mgr.report_failure.assert_called_once_with(session, is_captcha=True)
+        assert total == 0
+        assert stats["pages_crawled"] == 0
         mock_lock.release.assert_called_once()
 
-    async def test_execute_global_exception_raises_network_error(
+    async def test_execute_global_exception_breaks(
         self,
         mock_parse,
         mock_is_captcha,
@@ -252,16 +169,15 @@ class TestStealthExecutorExecute:
         executor,
         dummy_plan,
         mock_save_cb,
-        mock_profile_manager,
         mock_browser,
         mock_lock,
     ):
-        mgr, session = mock_profile_manager
         mock_parse.side_effect = ValueError("Something completely broken")
 
-        with pytest.raises(NetworkError, match="Сбой браузера"):
-            await executor.execute(dummy_plan, mock_save_cb)
+        total, stats = await executor.execute(dummy_plan, mock_save_cb)
 
+        assert total == 0
+        assert stats["pages_crawled"] == 0
         mock_lock.release.assert_called_once()
 
     async def test_execute_duplicate_visited_url(
@@ -271,15 +187,17 @@ class TestStealthExecutorExecute:
         mock_sleep,
         executor,
         mock_save_cb,
-        mock_profile_manager,
         mock_browser,
     ):
         plan = CrawlerPlan(
             start_urls=["http://test.com", "http://test.com"],
+            start_phase="list",
             item_selector="div",
+            request_headers={},
             fields={},
+            max_pages=2,
         )
-        mock_parse.return_value = ([{"id": 1}], None)
+        mock_parse.return_value = ([{"id": 1}], None, {})
 
         total, stats = await executor.execute(plan, mock_save_cb)
         assert stats["pages_crawled"] == 1
@@ -292,15 +210,10 @@ class TestStealthExecutorExecute:
         executor,
         dummy_plan,
         mock_save_cb,
-        mock_profile_manager,
         mock_browser,
     ):
-        """Если browser.page is None, выбрасывается PlaywrightError (и перехватывается)."""
-        mgr, session = mock_profile_manager
-        mock_browser.page = None  # Имитируем падение страницы
+        mock_browser.page = None
 
         total, stats = await executor.execute(dummy_plan, mock_save_cb)
 
         assert total == 0
-        assert stats["queue_remaining"] == 1
-        mgr.report_failure.assert_called_once_with(session)

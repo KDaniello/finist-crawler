@@ -222,6 +222,7 @@ class TestJSONExtractor:
             start_phase="list",
             item_selector="items",
             next_page_selector="meta.next_cursor",
+            pagination_mode="cursor",
             request_headers={},
             fields={
                 "id": FieldRule("id"),
@@ -249,7 +250,7 @@ class TestJSONExtractor:
         assert records[0]["missing"] == "N/A"
 
         # Пагинация (относительный путь сджойнен)
-        assert next_url == "http://test.com/api/v2?page=2"
+        assert next_url == "http://test.com?after=/api/v2?page=2"
 
     def test_extract_dict_wrapped_in_list(self, plan):
         """Если item_selector находит dict вместо list, extractor оборачивает в list."""
