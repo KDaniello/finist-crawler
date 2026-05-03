@@ -8,9 +8,10 @@ from __future__ import annotations
 import contextlib
 import logging
 import time
+from collections.abc import Callable
 from pathlib import Path
 from types import TracebackType
-from typing import Any
+from typing import Any, ClassVar
 
 from browserforge.fingerprints import Screen
 from camoufox.async_api import AsyncCamoufox
@@ -108,6 +109,19 @@ def _extract_context(camoufox_result: Any, profile_dir: Path) -> BrowserContext:
 class ImmortalBrowser:
     """Менеджер жизненного цикла браузера Camoufox для конкретного домена."""
 
+    _DEFAULT_BLOCKED_DOMAINS: ClassVar[list[str]] = [
+        "google-analytics.com",
+        "doubleclick.net",
+        "facebook.net",
+        "facebook.com",
+        "mc.yandex.ru",
+        "hotjar.com",
+        "tiktok.com",
+        "metrika.yandex.ru",
+        "sentry.io",
+        "googletagmanager.com",
+    ]
+
     def __init__(
         self,
         domain: str,
@@ -117,6 +131,8 @@ class ImmortalBrowser:
         block_media: bool = True,
         block_trackers: bool = True,
         apply_lean_prefs: bool = False,
+        browser_factory: Callable[..., AsyncCamoufox] | None = None,
+        blocked_domains: list[str] | None = None,
     ) -> None:
         self.domain = domain
         self.profiles_dir = profiles_dir
@@ -125,6 +141,11 @@ class ImmortalBrowser:
         self.block_media = block_media
         self.block_trackers = block_trackers
         self.apply_lean_prefs = apply_lean_prefs
+
+        self._browser_factory = browser_factory
+        self._blocked_domains = (
+            blocked_domains if blocked_domains is not None else list(self._DEFAULT_BLOCKED_DOMAINS)
+        )
 
         self._cm: AsyncCamoufox | None = None
         self._context: BrowserContext | None = None
@@ -162,7 +183,8 @@ class ImmortalBrowser:
             f"[browser] starting | domain={self.domain} profile={profile_dir.name} {proxy_info}"
         )
 
-        self._cm = AsyncCamoufox(**kwargs)  # type: ignore[no-untyped-call]
+        factory = self._browser_factory or AsyncCamoufox
+        self._cm = factory(**kwargs)  # type: ignore[no-untyped-call]
 
         # AsyncCamoufox.__aenter__ возвращает разные типы в зависимости от версии и конфига.
         # _extract_context() определяет тип и возвращает нам гарантированный BrowserContext.
@@ -283,19 +305,7 @@ class ImmortalBrowser:
             return
 
         allowed_types = {"document", "script", "xhr", "fetch"}
-
-        blocked_domains = [
-            "google-analytics.com",
-            "doubleclick.net",
-            "facebook.net",
-            "facebook.com",
-            "mc.yandex.ru",
-            "hotjar.com",
-            "tiktok.com",
-            "metrika.yandex.ru",
-            "sentry.io",
-            "googletagmanager.com",
-        ]
+        blocked_domains = self._blocked_domains
 
         async def route_handler(route: Route) -> None:
             req = route.request
