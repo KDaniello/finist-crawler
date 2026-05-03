@@ -14,6 +14,7 @@ from engine.parsing_rules import CrawlerPlan, FieldRule
 from engine.rate_limiter import DomainConfig
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 @patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
@@ -58,7 +59,7 @@ async def test_executor_respects_429_and_retries(
     records = []
 
     async with LightExecutor() as light:
-        total, stats = await light.execute(plan, save_cb=lambda r: records.extend(r))
+        total, _stats = await light.execute(plan, save_cb=lambda r: records.extend(r))
 
     assert request_count == 2
     assert total == 1

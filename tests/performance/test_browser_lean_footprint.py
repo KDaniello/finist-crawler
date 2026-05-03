@@ -17,6 +17,7 @@ from core.resources import SystemMonitor
 from engine.browser import ImmortalBrowser
 
 
+@pytest.mark.browser
 @pytest.mark.asyncio
 async def test_browser_ram_footprint(browser_lock, tmp_path: Path):
     """

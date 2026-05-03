@@ -9,10 +9,12 @@ import os
 from pathlib import Path
 
 import psutil
+import pytest
 
 from core.file_manager import DataWriter
 
 
+@pytest.mark.performance
 def test_csv_export_memory_efficiency(tmp_path: Path):
     session_id = "perf_session"
     source = "massive_data"

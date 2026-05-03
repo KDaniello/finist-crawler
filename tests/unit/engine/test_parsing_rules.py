@@ -211,7 +211,7 @@ class TestHTMLExtractor:
             request_headers={},
             fields={"dummy": FieldRule("")},
         )
-        records, next_url, _ = HTMLExtractor().extract(html, plan, "http://test.com", "list")
+        records, _next_url, _ = HTMLExtractor().extract(html, plan, "http://test.com", "list")
 
         assert records == []
 
@@ -273,15 +273,15 @@ class TestJSONExtractor:
         """Если JSON битый, экстрактор не падает, а возвращает пустые данные."""
         extractor = JSONExtractor()
 
-        rec1, n1, _ = extractor.extract('{ "items": [ }', plan, "url", "list")
+        rec1, _n1, _ = extractor.extract('{ "items": [ }', plan, "url", "list")
         assert rec1 == []
 
-        rec2, n2, _ = extractor.extract("{ bad }", plan, "url", "list")
+        rec2, _n2, _ = extractor.extract("{ bad }", plan, "url", "list")
         assert rec2 == []
 
     def test_extract_json_empty_record(self):
         """Если JSON пустой или все селекторы полей пустые, запись пропускается."""
-        plan = CrawlerPlan(
+        _plan = CrawlerPlan(
             start_urls=["url"],
             start_phase="list",
             item_selector="items",
@@ -297,7 +297,7 @@ class TestJSONExtractor:
             fields={},
         )
 
-        records, next_url, _ = JSONExtractor().extract('{"items": [{"id": 1}]}', empty_plan, "url", "list")
+        records, _next_url, _ = JSONExtractor().extract('{"items": [{"id": 1}]}', empty_plan, "url", "list")
         assert records == []
 
 
@@ -316,7 +316,7 @@ class TestParsePage:
             fields={"a": FieldRule("a")},
             extraction_mode="html",
         )
-        records, next_url, _ = parse_page("<div><a>Link</a></div>", plan, "http://url")
+        records, _next_url, _ = parse_page("<div><a>Link</a></div>", plan, "http://url")
         assert len(records) == 1
 
     def test_parse_page_json_mode(self):
@@ -328,7 +328,7 @@ class TestParsePage:
             fields={"a": FieldRule("a")},
             extraction_mode="json",
         )
-        records, next_url, _ = parse_page('[{"a": "Link"}]', plan, "http://url")
+        records, _next_url, _ = parse_page('[{"a": "Link"}]', plan, "http://url")
         assert len(records) == 1
 
     @patch.object(HTMLExtractor, "extract", side_effect=Exception("Critical Crash"))

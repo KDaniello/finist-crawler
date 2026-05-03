@@ -45,17 +45,17 @@ def mock_save_cb():
 
 @pytest.fixture
 def mock_light_cls():
-    with patch("engine.fallback_chain.LightExecutor") as MockCls:
+    with patch("engine.fallback_chain.LightExecutor") as mock_cls:
         instance = AsyncMock()
-        MockCls.return_value.__aenter__.return_value = instance
+        mock_cls.return_value.__aenter__.return_value = instance
         yield instance
 
 
 @pytest.fixture
 def mock_stealth_cls():
-    with patch("engine.fallback_chain.StealthExecutor") as MockCls:
+    with patch("engine.fallback_chain.StealthExecutor") as mock_cls:
         instance = AsyncMock()
-        MockCls.return_value.__aenter__.return_value = instance
+        mock_cls.return_value.__aenter__.return_value = instance
         yield instance
 
 
@@ -104,7 +104,7 @@ class TestFallbackOrchestratorStatic:
             browser_lock=mock_lock, profiles_dir=dummy_profiles_dir, render_strategy="static"
         )
         mock_light_cls.execute.return_value = (10, {"executor": "Light"})
-        total, stats = await orchestrator.execute_plan(dummy_plan, mock_save_cb)
+        total, _stats = await orchestrator.execute_plan(dummy_plan, mock_save_cb)
 
         assert total == 10
         mock_light_cls.execute.assert_called_once()
@@ -165,7 +165,7 @@ class TestFallbackOrchestratorBrowser:
             browser_lock=mock_lock, profiles_dir=dummy_profiles_dir, render_strategy="browser"
         )
         mock_stealth_cls.execute.return_value = (5, {"executor": "Stealth"})
-        total, stats = await orchestrator.execute_plan(dummy_plan, mock_save_cb)
+        total, _stats = await orchestrator.execute_plan(dummy_plan, mock_save_cb)
 
         assert total == 5
         mock_light_cls.execute.assert_not_called()
@@ -211,7 +211,7 @@ class TestFallbackOrchestratorAuto:
             browser_lock=mock_lock, profiles_dir=dummy_profiles_dir, render_strategy="auto"
         )
         mock_light_cls.execute.return_value = (20, {"executor": "Light"})
-        total, stats = await orchestrator.execute_plan(dummy_plan, mock_save_cb)
+        total, _stats = await orchestrator.execute_plan(dummy_plan, mock_save_cb)
 
         assert total == 20
         mock_light_cls.execute.assert_called_once()

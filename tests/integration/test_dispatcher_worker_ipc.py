@@ -36,6 +36,7 @@ def _dummy_ipc_worker(
     logger.info("Работа завершена. Ухожу в закат.")
 
 
+@pytest.mark.integration
 def test_dispatcher_and_logging_ipc(tmp_path: Path, browser_lock):
     logs_dir = tmp_path / "logs"
 

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import psutil
+import pytest
 
 from core.config import ProjectPaths, Settings
 from core.dispatcher import Dispatcher, SessionManagerProtocol
@@ -36,6 +37,7 @@ def _endless_worker(
         time.sleep(0.1)
 
 
+@pytest.mark.stress
 def test_stop_all_leaves_no_orphan_processes(tmp_path: Path):
     logs_dir = tmp_path / "logs"
     log_manager = LogManager()

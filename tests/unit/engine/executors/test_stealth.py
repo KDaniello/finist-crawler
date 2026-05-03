@@ -16,18 +16,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import engine.executors.stealth
+from engine.executors.stealth import StealthExecutor
+from engine.parsing_rules import CrawlerPlan
+
 
 class FakePlaywrightError(Exception):
     pass
 
 
-import engine.executors.stealth
-
-engine.executors.stealth.PlaywrightError = FakePlaywrightError
-
-from core.exceptions import CaptchaBlockError
-from engine.executors.stealth import StealthExecutor
-from engine.parsing_rules import CrawlerPlan
+@pytest.fixture(autouse=True)
+def _patch_playwright_error():
+    original = engine.executors.stealth.PlaywrightError
+    engine.executors.stealth.PlaywrightError = FakePlaywrightError
+    yield
+    engine.executors.stealth.PlaywrightError = original
 
 
 @pytest.fixture
@@ -60,12 +63,12 @@ def mock_save_cb():
 @pytest.fixture
 def mock_browser():
     """Мокает ImmortalBrowser."""
-    with patch("engine.executors.stealth.ImmortalBrowser") as MockBrowserCls:
+    with patch("engine.executors.stealth.ImmortalBrowser") as mock_browser_cls:
         mock_b_instance = AsyncMock()
         mock_b_instance.page = AsyncMock()
         mock_b_instance.page.content.return_value = "<html>test</html>"
 
-        MockBrowserCls.return_value.__aenter__.return_value = mock_b_instance
+        mock_browser_cls.return_value.__aenter__.return_value = mock_b_instance
         yield mock_b_instance
 
 
@@ -137,7 +140,7 @@ class TestStealthExecutorExecute:
     ):
         mock_browser.page.goto.side_effect = FakePlaywrightError("Browser crashed")
 
-        total, stats = await executor.execute(dummy_plan, mock_save_cb)
+        total, _stats = await executor.execute(dummy_plan, mock_save_cb)
 
         assert total == 0
 
@@ -199,7 +202,7 @@ class TestStealthExecutorExecute:
         )
         mock_parse.return_value = ([{"id": 1}], None, {})
 
-        total, stats = await executor.execute(plan, mock_save_cb)
+        _total, stats = await executor.execute(plan, mock_save_cb)
         assert stats["pages_crawled"] == 1
 
     async def test_page_is_none_raises_playwright_error(
@@ -214,6 +217,6 @@ class TestStealthExecutorExecute:
     ):
         mock_browser.page = None
 
-        total, stats = await executor.execute(dummy_plan, mock_save_cb)
+        total, _stats = await executor.execute(dummy_plan, mock_save_cb)
 
         assert total == 0

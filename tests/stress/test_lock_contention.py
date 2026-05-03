@@ -45,6 +45,7 @@ def _lock_grabber_worker(
     )
 
 
+@pytest.mark.stress
 def test_browser_lock_prevents_concurrent_access(tmp_path: Path):
     logs_dir = tmp_path / "logs"
     log_manager = LogManager()

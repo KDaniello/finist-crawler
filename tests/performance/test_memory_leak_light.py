@@ -28,6 +28,7 @@ _PAGE_HTML = """
 )
 
 
+@pytest.mark.performance
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 async def test_light_executor_no_memory_leak(mock_domain_config_cls, httpserver: HTTPServer):
@@ -101,7 +102,7 @@ async def test_light_executor_no_memory_leak(mock_domain_config_cls, httpserver:
         # Данные намеренно НЕ сохраняем в список — они должны уйти в GC
 
     async with LightExecutor() as light:
-        total, stats = await light.execute(plan, save_cb=save_callback)
+        total, _stats = await light.execute(plan, save_cb=save_callback)
 
     # Принудительная сборка мусора после прогона
     gc.collect()

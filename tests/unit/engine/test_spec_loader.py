@@ -152,14 +152,14 @@ class TestLoadSpec:
 
     def test_spec_not_found(self, specs_dir):
         """Если файла нет, выбрасывается SpecError."""
-        with pytest.raises(SpecError, match="Файл спецификации не найден: missing.yaml"):
+        with pytest.raises(SpecError, match=r"Файл спецификации не найден: missing\.yaml"):
             load_spec("missing", specs_dir)
 
     def test_invalid_yaml_syntax(self, specs_dir, caplog):
         """При синтаксической ошибке YAML выбрасывается SpecError."""
         (specs_dir / "bad.yaml").write_text("key: value\n  broken_indent: true", encoding="utf-8")
 
-        with pytest.raises(SpecError, match="Ошибка формата в файле bad.yaml"):
+        with pytest.raises(SpecError, match=r"Ошибка формата в файле bad\.yaml"):
             load_spec("bad", specs_dir)
 
         assert "Синтаксическая ошибка YAML" in caplog.text
@@ -168,15 +168,15 @@ class TestLoadSpec:
         """При ошибке ОС (например, нет прав) выбрасывается SpecError."""
         (specs_dir / "err.yaml").write_text("key: value", encoding="utf-8")
 
-        with patch.object(Path, "read_text", side_effect=OSError("Access Denied")):
-            with pytest.raises(SpecError, match="Не удалось прочитать файл err.yaml"):
-                load_spec("err", specs_dir)
+        with patch.object(Path, "read_text", side_effect=OSError("Access Denied")), \
+             pytest.raises(SpecError, match=r"Не удалось прочитать файл err\.yaml"):
+            load_spec("err", specs_dir)
 
     def test_spec_is_not_dict(self, specs_dir):
         """Спецификация должна быть словарем на верхнем уровне."""
         (specs_dir / "list.yaml").write_text("- item1\n- item2", encoding="utf-8")
 
-        with pytest.raises(SpecError, match="Спецификация list.yaml должна быть словарем."):
+        with pytest.raises(SpecError, match=r"Спецификация list\.yaml должна быть словарем\."):
             load_spec("list", specs_dir)
 
     def test_validation_success(self, specs_dir):
@@ -196,7 +196,7 @@ class TestLoadSpec:
         )
         (specs_dir / "invalid.yaml").write_text("age: 10", encoding="utf-8")
 
-        with pytest.raises(SpecError, match="Ошибка конфигурации в invalid.yaml"):
+        with pytest.raises(SpecError, match=r"Ошибка конфигурации в invalid\.yaml"):
             load_spec("invalid", specs_dir)
 
         assert "Спецификация invalid.yaml невалидна" in caplog.text

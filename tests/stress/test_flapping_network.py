@@ -22,6 +22,7 @@ from engine.parsing_rules import CrawlerPlan, FieldRule
 from engine.rate_limiter import DomainConfig
 
 
+@pytest.mark.stress
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 @patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
@@ -75,7 +76,7 @@ async def test_flapping_5xx_errors(
 
     try:
         async with LightExecutor() as light:
-            total, stats = await light.execute(plan, save_cb=lambda r: records.extend(r))
+            total, _stats = await light.execute(plan, save_cb=lambda r: records.extend(r))
 
         assert total >= 0
 
@@ -88,6 +89,7 @@ async def test_flapping_5xx_errors(
     assert request_count > 1, "Экзекутор не сделал ни одного ретрая!"
 
 
+@pytest.mark.stress
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 @patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
@@ -139,10 +141,10 @@ async def test_mixed_errors_never_crash(
 
     try:
         async with LightExecutor() as light:
-            total, stats = await light.execute(plan, save_cb=lambda r: None)
+            total, _stats = await light.execute(plan, save_cb=lambda r: None)
 
         assert total >= 0
-        assert stats["pages_crawled"] >= 0
+        assert _stats["pages_crawled"] >= 0
 
     except (NetworkError, CaptchaBlockError):
         pass
@@ -151,6 +153,7 @@ async def test_mixed_errors_never_crash(
         pytest.fail(f"Необработанное исключение в хаосе: {type(e).__name__}: {e}")
 
 
+@pytest.mark.stress
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 @patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
@@ -194,7 +197,7 @@ async def test_429_adaptive_slowdown(
 
     try:
         async with LightExecutor() as light:
-            total, stats = await light.execute(plan, save_cb=lambda r: None)
+            total, _stats = await light.execute(plan, save_cb=lambda r: None)
 
         assert total == 0
 
