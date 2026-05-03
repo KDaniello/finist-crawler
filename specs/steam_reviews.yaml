@@ -22,15 +22,6 @@ crawler:
     requests_per_second: 0.9
     request_timeout_sec: 20
 
-  list:
-    # Фиктивный блок — flow: [detail] означает, что list пропускается.
-    # Обязателен для валидации schema.json.
-    url_template: "https://store.steampowered.com/appreviews/{app_id}?json=1&filter=recent&language=all&num_per_page=50&cursor=*&cc=RU&l=russian"
-    item_selector: "reviews"
-    fields:
-      detail_url:
-        selector: "recommendationid"
-
   detail:
     # {app_id} подставляется из config_overrides.template_params.app_id
     url_template: "https://store.steampowered.com/appreviews/{app_id}?json=1&filter=recent&language=all&num_per_page=50&cursor=*&cc=RU&l=russian"

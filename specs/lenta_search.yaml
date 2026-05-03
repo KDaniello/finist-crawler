@@ -28,12 +28,9 @@ crawler:
   # ==========================================================
   list:
     # {keyword} подставляется из config_overrides.template_params.keyword
+    # Lenta API uses comma-separated modifier: modified,format=yyyy-MM-dd
     url_template: "https://lenta.ru/search/v2/process?query={keyword}&from=0&size=10&sort=2&title_only=0&domain=1&modified,format=yyyy-MM-dd"
     extraction_mode: lenta_search
-
-    # item_selector не используется LentaSearchExtractor напрямую,
-    # но обязателен для валидации schema.json
-    item_selector: "matches"
 
     fields:
       detail_url:
@@ -51,10 +48,6 @@ crawler:
   # ==========================================================
   detail:
     extraction_mode: lenta_article
-
-    # item_selector не используется LentaArticleExtractor,
-    # но обязателен для валидации schema.json
-    item_selector: "body"
 
     fields:
       text:

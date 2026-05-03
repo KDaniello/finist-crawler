@@ -39,8 +39,6 @@ crawler:
     url_template: "https://www.reddit.com{}.json"
     extraction_mode: reddit
     
-    item_selector: "none"
-    
     fields:
       author:
         selector: "author"
