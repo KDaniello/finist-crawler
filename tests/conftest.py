@@ -3,7 +3,10 @@ import warnings
 
 import pytest
 
-# Глушим системные варнинги
+from core._openpyxl_compat import apply_openpyxl_compat
+
+apply_openpyxl_compat()
+
 warnings.filterwarnings("ignore", message="Proactor event loop does not implement add_reader")
 warnings.filterwarnings("ignore", category=pytest.PytestUnraisableExceptionWarning)
 warnings.filterwarnings("ignore", message="unclosed transport")
