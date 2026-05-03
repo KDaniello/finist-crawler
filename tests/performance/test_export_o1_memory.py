@@ -16,15 +16,12 @@ from core.file_manager import DataWriter
 
 @pytest.mark.performance
 def test_csv_export_memory_efficiency(tmp_path: Path):
-    """
-    СЦЕНАРИЙ: Генерируем JSONL файл на 100 000 строк (~10 МБ на диске). Экспортируем в CSV.
-    ОЖИДАНИЕ: Оперативная память во время экспорта вырастет не более чем на 5 МБ,
-              так как экспорт читает файл построчно O(1).
-    """
     session_id = "perf_session"
     source = "massive_data"
 
-    writer = DataWriter(base_dir=tmp_path, session_id=session_id, source=source, lock=multiprocessing.Lock())
+    ctx = multiprocessing.get_context("spawn")
+    lock = ctx.Lock()
+    writer = DataWriter(base_dir=tmp_path, session_id=session_id, source=source, lock=lock)
     writer.source_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Генерируем массивный JSONL напрямую (чтобы не нагружать память списками Python)

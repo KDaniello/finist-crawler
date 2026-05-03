@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from core.config import ProjectPaths, Settings
 from core.dispatcher import Dispatcher
 
 # ---------------------------------------------------------------------------
@@ -24,7 +25,7 @@ from core.dispatcher import Dispatcher
 # ---------------------------------------------------------------------------
 
 
-def dummy_worker(spec_name, session_id, config_overrides, log_queue, browser_lock):
+def dummy_worker(spec_name, session_id, config_overrides, log_queue, browser_lock, settings, paths):
     """Пустая функция для передачи в качестве WorkerCallable."""
 
 
@@ -39,6 +40,16 @@ def mock_session_manager():
 @pytest.fixture
 def mock_log_queue():
     return MagicMock(spec=multiprocessing.Queue)
+
+
+@pytest.fixture
+def mock_settings():
+    return MagicMock(spec=Settings)
+
+
+@pytest.fixture
+def mock_paths():
+    return MagicMock(spec=ProjectPaths)
 
 
 @pytest.fixture
@@ -79,68 +90,77 @@ class TestDispatcherInit:
 
 
 class TestDispatcherStartTasks:
-    def test_start_tasks_empty_specs(self, dispatcher, caplog):
+    def test_start_tasks_empty_specs(self, dispatcher, mock_settings, mock_paths, caplog):
         """Если список спецификаций пуст, возвращает None и не вызывает процессы."""
         with caplog.at_level(logging.WARNING):
-            result = dispatcher.start_tasks(dummy_worker, ["   ", ""], {}, settings=MagicMock(), paths=MagicMock())
+            result = dispatcher.start_tasks(
+                dummy_worker, ["   ", ""], {}, mock_settings, mock_paths
+            )
 
         assert result is None
         assert "Нет спецификаций" in caplog.text
 
-    def test_start_tasks_already_running(self, dispatcher, caplog):
+    def test_start_tasks_already_running(self, dispatcher, mock_settings, mock_paths, caplog):
         """Если процессы уже запущены, не дает запустить новые и возвращает старый session_id."""
-        # Имитируем работающий процесс
         mock_proc = MagicMock()
         mock_proc.is_alive.return_value = True
         dispatcher._active_processes["test"] = mock_proc
         dispatcher._current_session_id = "old_session"
 
         with caplog.at_level(logging.WARNING):
-            result = dispatcher.start_tasks(dummy_worker, ["new_spec"], {}, settings=MagicMock(), paths=MagicMock())
+            result = dispatcher.start_tasks(
+                dummy_worker, ["new_spec"], {}, mock_settings, mock_paths
+            )
 
         assert result == "old_session"
         assert "предыдущие еще работают" in caplog.text
 
-    def test_start_tasks_success(self, dispatcher, mock_ctx, mock_session_manager):
+    def test_start_tasks_success(
+        self, dispatcher, mock_ctx, mock_session_manager, mock_settings, mock_paths
+    ):
         """Успешный запуск создает процессы с правильными аргументами."""
         mock_proc = MagicMock()
         mock_proc.pid = 999
         mock_ctx.Process.return_value = mock_proc
 
-        result = dispatcher.start_tasks(dummy_worker, ["reddit", "telegram"], {"fast": True}, settings=MagicMock(), paths=MagicMock())
+        result = dispatcher.start_tasks(
+            dummy_worker, ["reddit", "telegram"], {"fast": True}, mock_settings, mock_paths
+        )
 
         assert result == "session_mock_123"
         mock_session_manager.create_session.assert_called_once()
 
-        # Проверяем, что Process вызван 2 раза (для reddit и telegram)
         assert mock_ctx.Process.call_count == 2
 
-        # Проверяем аргументы первого вызова Process
         kwargs = mock_ctx.Process.call_args_list[0].kwargs
         assert kwargs["target"] == dummy_worker
         assert kwargs["name"] == "Worker-reddit"
         assert kwargs["daemon"] is True
 
-        # Args: (spec_name, session_id, config_overrides, log_queue, browser_lock)
         args = kwargs["args"]
         assert args[0] == "reddit"
         assert args[1] == "session_mock_123"
         assert args[2] == {"fast": True}
+        assert args[5] is mock_settings
+        assert args[6] is mock_paths
 
-        # Процессы должны быть запущены и добавлены в реестр
         assert mock_proc.start.call_count == 2
         assert "reddit" in dispatcher._active_processes
         assert "telegram" in dispatcher._active_processes
 
-    def test_start_tasks_process_exception(self, dispatcher, mock_ctx, caplog):
+    def test_start_tasks_process_exception(
+        self, dispatcher, mock_ctx, mock_settings, mock_paths, caplog
+    ):
         """Если при создании процесса возникла ошибка ОС, оркестратор не падает."""
         mock_ctx.Process.side_effect = OSError("Too many open files")
 
         with caplog.at_level(logging.ERROR):
-            result = dispatcher.start_tasks(dummy_worker, ["bad_spec"], {}, settings=MagicMock(), paths=MagicMock())
+            result = dispatcher.start_tasks(
+                dummy_worker, ["bad_spec"], {}, mock_settings, mock_paths
+            )
 
-        assert result == "session_mock_123"  # Сессия создалась
-        assert len(dispatcher._active_processes) == 0  # Но процесс не добавлен
+        assert result == "session_mock_123"
+        assert len(dispatcher._active_processes) == 0
         assert "Не удалось запустить процесс" in caplog.text
         assert "Too many open files" in caplog.text
 
