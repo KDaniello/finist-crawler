@@ -28,6 +28,7 @@ _PAGE_HTML = """
 )
 
 
+@pytest.mark.performance
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 async def test_light_executor_no_memory_leak(mock_domain_config_cls, httpserver: HTTPServer):

@@ -41,7 +41,7 @@ def _lock_grabber_worker(
         logger.info(f"[{worker_id}] Лок захвачен!")
 
         # Симулируем работу браузера (парсинг одной страницы)
-        time.sleep(0.5)
+        time.sleep(0.1)
 
     finally:
         released_at = time.monotonic()
@@ -57,6 +57,7 @@ def _lock_grabber_worker(
     )
 
 
+@pytest.mark.stress
 def test_browser_lock_prevents_concurrent_access(tmp_path: Path):
     """
     СЦЕНАРИЙ: 5 процессов одновременно пытаются захватить browser_lock.
@@ -124,7 +125,7 @@ def test_browser_lock_prevents_concurrent_access(tmp_path: Path):
 
     # ПРОВЕРКА 3: Суммарное время соответствует строгой очереди
     total_time = results[-1]["released_at"] - results[0]["acquired_at"]
-    expected_min_time = num_workers * 0.5  # 5 воркеров * 0.5 сек каждый
+    expected_min_time = num_workers * 0.1  # 5 воркеров * 0.1 сек каждый
     assert total_time >= expected_min_time * 0.8, (
         f"Суммарное время {total_time:.2f}s подозрительно мало. "
         f"Ожидали минимум {expected_min_time * 0.8:.2f}s. "

@@ -22,6 +22,7 @@ from engine.parsing_rules import CrawlerPlan, FieldRule
 from engine.rate_limiter import DomainConfig
 
 
+@pytest.mark.stress
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 @patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
@@ -88,6 +89,7 @@ async def test_flapping_5xx_errors(
     assert request_count > 1, "Экзекутор не сделал ни одного ретрая!"
 
 
+@pytest.mark.stress
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 @patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
@@ -151,6 +153,7 @@ async def test_mixed_errors_never_crash(
         pytest.fail(f"Необработанное исключение в хаосе: {type(e).__name__}: {e}")
 
 
+@pytest.mark.stress
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 @patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)

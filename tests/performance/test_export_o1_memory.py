@@ -13,6 +13,7 @@ import psutil
 from core.file_manager import DataWriter
 
 
+@pytest.mark.performance
 def test_csv_export_memory_efficiency(tmp_path: Path):
     """
     СЦЕНАРИЙ: Генерируем JSONL файл на 100 000 строк (~10 МБ на диске). Экспортируем в CSV.

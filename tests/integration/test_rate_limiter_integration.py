@@ -14,6 +14,7 @@ from engine.parsing_rules import CrawlerPlan, FieldRule
 from engine.rate_limiter import DomainConfig
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 @patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)

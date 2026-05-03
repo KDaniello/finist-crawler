@@ -42,6 +42,7 @@ def _endless_worker(
         time.sleep(0.1)
 
 
+@pytest.mark.stress
 def test_stop_all_leaves_no_orphan_processes(tmp_path: Path):
     """
     СЦЕНАРИЙ: Запускаем 3 бесконечных воркера. Вызываем stop_all() (как при закрытии UI).
@@ -65,7 +66,7 @@ def test_stop_all_leaves_no_orphan_processes(tmp_path: Path):
         assert session_id is not None
 
         # Даём процессам время на старт
-        time.sleep(2.0)
+        time.sleep(0.5)
 
         # Проверяем, что все 3 воркера живы
         assert dispatcher.is_running() is True
@@ -79,8 +80,8 @@ def test_stop_all_leaves_no_orphan_processes(tmp_path: Path):
         # ЖЕСТКАЯ ОСТАНОВКА (симуляция закрытия окна приложения)
         dispatcher.stop_all()
 
-        # Даём ОС 2 секунды на финальную уборку
-        time.sleep(2.0)
+        # Даём ОС время на финальную уборку
+        time.sleep(0.5)
 
         # ПРОВЕРКА: Все PID-ы мертвы
         for pid in pids_before:
