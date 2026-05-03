@@ -9,6 +9,7 @@ bots.universal_bot is injected via sys.modules patch where needed.
 from __future__ import annotations
 
 import sys
+from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -16,7 +17,6 @@ import pytest
 
 from core.job_config import JobConfig
 from ui.app import AppController, main
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -66,7 +66,7 @@ def ctrl(fake_page: MagicMock, fake_paths: MagicMock, fake_settings: MagicMock) 
 
 
 @pytest.fixture()
-def bot_mock() -> MagicMock:
+def bot_mock() -> Generator[MagicMock]:
     fake_module = MagicMock()
     with patch.dict(sys.modules, {"bots": fake_module, "bots.universal_bot": fake_module}):
         yield fake_module
@@ -104,8 +104,8 @@ class TestAppControllerConstruction:
         sys.modules.pop("bots.universal_bot", None)
         sys.modules.pop("bots", None)
 
-        ctrl.dispatcher.is_running = MagicMock(return_value=False)
-        ctrl.dispatcher.start_tasks = MagicMock(return_value="session_abc")
+        ctrl.dispatcher.is_running = MagicMock(return_value=False)  # type: ignore[method-assign]
+        ctrl.dispatcher.start_tasks = MagicMock(return_value="session_abc")  # type: ignore[method-assign]
 
         job = JobConfig(spec_name="habr_search.yaml", max_pages=1, template_params={"keyword": "test"})
         ctrl.start_parsing([job])
@@ -120,19 +120,19 @@ class TestAppControllerConstruction:
 
 class TestStartParsing:
     def test_returns_false_when_running(self, ctrl: AppController, bot_mock: MagicMock) -> None:
-        ctrl.dispatcher.is_running = MagicMock(return_value=True)
+        ctrl.dispatcher.is_running = MagicMock(return_value=True)  # type: ignore[method-assign]
         job = JobConfig(spec_name="habr_search.yaml")
         result = ctrl.start_parsing([job])
         assert result is False
 
     def test_returns_false_for_empty_list(self, ctrl: AppController, bot_mock: MagicMock) -> None:
-        ctrl.dispatcher.is_running = MagicMock(return_value=False)
+        ctrl.dispatcher.is_running = MagicMock(return_value=False)  # type: ignore[method-assign]
         result = ctrl.start_parsing([])
         assert result is False
 
     def test_returns_true_on_success(self, ctrl: AppController, bot_mock: MagicMock) -> None:
-        ctrl.dispatcher.is_running = MagicMock(return_value=False)
-        ctrl.dispatcher.start_tasks = MagicMock(return_value="session_ok")
+        ctrl.dispatcher.is_running = MagicMock(return_value=False)  # type: ignore[method-assign]
+        ctrl.dispatcher.start_tasks = MagicMock(return_value="session_ok")  # type: ignore[method-assign]
         job = JobConfig(spec_name="habr_search.yaml", max_pages=2)
         result = ctrl.start_parsing([job])
         assert result is True
