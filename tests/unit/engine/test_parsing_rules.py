@@ -204,7 +204,7 @@ class TestHTMLExtractor:
             request_headers={},
             fields={"dummy": FieldRule("")},
         )
-        records, next_url, _ = HTMLExtractor().extract(html, plan, "http://test.com", "list")
+        records, _next_url, _ = HTMLExtractor().extract(html, plan, "http://test.com", "list")
 
         assert records == []
 

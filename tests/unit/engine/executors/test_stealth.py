@@ -202,7 +202,7 @@ class TestStealthExecutorExecute:
         )
         mock_parse.return_value = ([{"id": 1}], None, {})
 
-        total, stats = await executor.execute(plan, mock_save_cb)
+        _total, stats = await executor.execute(plan, mock_save_cb)
         assert stats["pages_crawled"] == 1
 
     async def test_page_is_none_raises_playwright_error(

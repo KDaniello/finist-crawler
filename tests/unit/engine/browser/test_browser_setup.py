@@ -129,7 +129,7 @@ class TestBrowserLifecycle:
 
     @pytest.mark.asyncio
     async def test_stop_success(self, browser, mock_camoufox):
-        _mock_cm, cm_instance, context = mock_camoufox
+        _mock_cm, cm_instance, _context = mock_camoufox
         await browser.start()
 
         page_mock = browser._page
