@@ -22,12 +22,16 @@ class FakePlaywrightError(Exception):
 
 
 import engine.executors.stealth
-
-engine.executors.stealth.PlaywrightError = FakePlaywrightError
-
-from core.exceptions import CaptchaBlockError
 from engine.executors.stealth import StealthExecutor
 from engine.parsing_rules import CrawlerPlan
+
+
+@pytest.fixture(autouse=True)
+def _patch_playwright_error():
+    original = engine.executors.stealth.PlaywrightError
+    engine.executors.stealth.PlaywrightError = FakePlaywrightError
+    yield
+    engine.executors.stealth.PlaywrightError = original
 
 
 @pytest.fixture
