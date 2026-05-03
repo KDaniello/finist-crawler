@@ -71,7 +71,7 @@ def schema_file(specs_dir: Path) -> Path:
                         "render": {"type": "string", "enum": ["browser", "static", "auto"]},
                         "list": {
                             "type": "object",
-                            "required": ["item_selector", "fields"],
+                            "required": ["fields"],
                             "properties": {
                                 "start_urls": {
                                     "type": "array",
