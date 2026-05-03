@@ -17,9 +17,9 @@ from engine.rate_limiter import DomainConfig
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 @patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
-@patch("asyncio.sleep", new_callable=AsyncMock)
+@patch("engine.executors.light.TokenBucket.acquire", new_callable=AsyncMock)
 async def test_executor_respects_429_and_retries(
-    mock_sleep, mock_warmup, mock_domain_config_cls, httpserver: HTTPServer
+    mock_acquire, mock_warmup, mock_domain_config_cls, httpserver: HTTPServer
 ):
     """
     СЦЕНАРИЙ: Локальный сервер возвращает 429 на первый запрос, и 200 на второй.

@@ -8,7 +8,7 @@
 
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pytest_httpserver import HTTPServer
@@ -19,6 +19,13 @@ from engine.parsing_rules import CrawlerPlan, FieldRule
 
 
 @pytest.fixture(autouse=True)
+def _patch_for_speed():
+    with patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock), \
+         patch("engine.executors.light.TokenBucket.acquire", new_callable=AsyncMock):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def prevent_real_browser_launch(monkeypatch):
     """
     Блокируем запуск реального firefox.exe.
@@ -26,7 +33,6 @@ def prevent_real_browser_launch(monkeypatch):
     """
     mock_browser = AsyncMock()
 
-    # Имитируем, что тяжелый браузер скачал чистую страницу
     mock_browser.page.content.return_value = """
         <html><body>
             <div class="item"><span class="text">Stealth Данные 1</span><span class="author">Charlie</span></div>
@@ -34,7 +40,6 @@ def prevent_real_browser_launch(monkeypatch):
         </body></html>
     """
 
-    # Мокаем контекстный менеджер ImmortalBrowser и детектор капчи
     monkeypatch.setattr(
         "engine.executors.stealth.ImmortalBrowser.__aenter__", AsyncMock(return_value=mock_browser)
     )

@@ -25,9 +25,9 @@ from engine.rate_limiter import DomainConfig
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 @patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
-@patch("asyncio.sleep", new_callable=AsyncMock)
+@patch("engine.executors.light.TokenBucket.acquire", new_callable=AsyncMock)
 async def test_flapping_5xx_errors(
-    mock_sleep, mock_warmup, mock_domain_config_cls, httpserver: HTTPServer
+    mock_acquire, mock_warmup, mock_domain_config_cls, httpserver: HTTPServer
 ):
     """
     СЦЕНАРИЙ: Сервер отвечает 500/502 (нестабильный бэкенд).
@@ -91,9 +91,9 @@ async def test_flapping_5xx_errors(
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 @patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
-@patch("asyncio.sleep", new_callable=AsyncMock)
+@patch("engine.executors.light.TokenBucket.acquire", new_callable=AsyncMock)
 async def test_mixed_errors_never_crash(
-    mock_sleep, mock_warmup, mock_domain_config_cls, httpserver: HTTPServer
+    mock_acquire, mock_warmup, mock_domain_config_cls, httpserver: HTTPServer
 ):
     """
     СЦЕНАРИЙ: Полный хаос — сервер случайно отвечает 200, 429, 500, 503.
@@ -154,9 +154,9 @@ async def test_mixed_errors_never_crash(
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
 @patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
-@patch("asyncio.sleep", new_callable=AsyncMock)
+@patch("engine.executors.light.TokenBucket.acquire", new_callable=AsyncMock)
 async def test_429_adaptive_slowdown(
-    mock_sleep, mock_warmup, mock_domain_config_cls, httpserver: HTTPServer
+    mock_acquire, mock_warmup, mock_domain_config_cls, httpserver: HTTPServer
 ):
     """
     СЦЕНАРИЙ: Сервер постоянно отвечает 429.
