@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import flet as ft
 
 from core import JobConfig
+from ui.app import AppController
 
 logger = logging.getLogger(__name__)
 
-SOURCES = [
+SOURCES: list[dict[str, Any]] = [
     {
         "spec_name": "habr_search.yaml",
         "title": "Хабр",
@@ -87,9 +89,9 @@ SOURCES = [
 class LauncherPage:
     """Страница запуска парсинга."""
 
-    def __init__(self, controller: object) -> None:
+    def __init__(self, controller: AppController) -> None:
         self._ctrl = controller
-        self._selected_source: dict | None = None
+        self._selected_source: dict[str, Any] | None = None
         self._cards: list[ft.Container] = []
 
         t = self._ctrl.theme.tokens

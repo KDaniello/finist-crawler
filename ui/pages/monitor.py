@@ -3,10 +3,12 @@ from __future__ import annotations
 import datetime
 import logging
 import threading
+from typing import Any
 
 import flet as ft
 
 from core.telemetry import TelemetryEvent, TelemetryEventType
+from ui.app import AppController
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +51,7 @@ class MonitorPage:
 
     MAX_LOG_LINES = 100
 
-    def __init__(self, controller: object) -> None:
+    def __init__(self, controller: AppController) -> None:
         self._ctrl = controller
         self._branch_bars: dict[str, ft.ProgressBar] = {}
         self._branch_texts: dict[str, ft.Text] = {}

@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
+from typing import Any
 
 import flet as ft
 
 from core.file_manager import DataWriter
+from ui.app import AppController
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +17,7 @@ logger = logging.getLogger(__name__)
 class ResultsPage:
     """Страница просмотра и экспорта результатов парсинга."""
 
-    def __init__(self, controller: object) -> None:
+    def __init__(self, controller: AppController) -> None:
         self._ctrl = controller
         self._sessions_col = ft.Column([], spacing=8)
         self._preview_col = ft.Column([], spacing=4, scroll=ft.ScrollMode.AUTO)
