@@ -32,7 +32,7 @@ class TokenBucket:
     Поддерживает как асинхронный (curl_cffi), так и синхронный (Camoufox) парсинг.
     """
 
-    def __init__(self, config: DomainConfig):
+    def __init__(self, config: DomainConfig) -> None:
         self._cfg = config
         self._max_tokens: float = float(config.burst_size)
         self._tokens: float = self._max_tokens

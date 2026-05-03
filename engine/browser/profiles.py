@@ -69,23 +69,19 @@ class SessionState:
 
     @property
     def is_expired(self) -> bool:
-        if self.stats.total_requests >= self.config.max_requests:
-            return True
-        if self.stats.age_seconds >= self.config.max_age_seconds:
-            return True
-        if self.stats.failed_requests >= self.config.max_errors:
-            return True
-        return False
+        return (
+            self.stats.total_requests >= self.config.max_requests
+            or self.stats.age_seconds >= self.config.max_age_seconds
+            or self.stats.failed_requests >= self.config.max_errors
+        )
 
     @property
     def should_rotate(self) -> bool:
-        if self.health in (SessionHealth.BANNED, SessionHealth.EXPIRED):
-            return True
-        if self.is_expired:
-            return True
-        if self.stats.consecutive_errors >= self.config.max_consecutive_errors:
-            return True
-        return False
+        return (
+            self.health in (SessionHealth.BANNED, SessionHealth.EXPIRED)
+            or self.is_expired
+            or self.stats.consecutive_errors >= self.config.max_consecutive_errors
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
