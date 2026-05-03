@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import multiprocessing
-import re
 from pathlib import Path
 from typing import Any
 
@@ -348,7 +347,7 @@ class ResultsPage:
                 self._show_snack("Нет данных для экспорта", t.accent_warn)
         except Exception as e:
             logger.error("Ошибка экспорта: %s", e)
-            self._show_snack(f"Ошибка: {e}", t.accent_danger)
+            self._show_snack("Не удалось экспортировать данные", t.accent_danger)
 
     def _preview(self, jsonl_file: Path) -> None:
         """
@@ -448,10 +447,10 @@ class ResultsPage:
                         )
                     )
 
-        except (json.JSONDecodeError, OSError) as e:
+        except (json.JSONDecodeError, OSError):
             self._preview_col.controls.append(
                 ft.Text(
-                    f"Ошибка: {e}",
+                    "Не удалось прочитать файл данных",
                     color=t.accent_danger,
                     font_family="Inter",
                 )

@@ -398,6 +398,18 @@ class LauncherPage:
             self._ctrl.page.update()
             return
 
+        if source["param_key"] == "app_id" and not param_value.isdigit():
+            self._status_text.value = "App ID должен быть числом (например, 1091500)"
+            self._status_text.color = t.accent_danger
+            self._ctrl.page.update()
+            return
+
+        if source["param_key"] == "direct_url" and not param_value.startswith("http"):
+            self._status_text.value = "Введите корректный URL (https://...)"
+            self._status_text.color = t.accent_danger
+            self._ctrl.page.update()
+            return
+
         max_pages = int(self._pages_slider.value or 1)
         detail_pages = int(self._detail_slider.value or 0)
 
