@@ -2,6 +2,8 @@ import asyncio
 import logging
 from collections import defaultdict, deque
 from pathlib import Path
+from types import TracebackType
+from typing import Any
 from urllib.parse import urlparse
 
 from playwright.async_api import Error as PlaywrightError
@@ -23,7 +25,7 @@ class StealthExecutor:
     def name(self) -> str:
         return "StealthExecutor (Camoufox)"
 
-    def __init__(self, browser_lock, profiles_dir: Path) -> None:
+    def __init__(self, browser_lock: Any, profiles_dir: Path) -> None:
         self._browser_lock = browser_lock
         self._profiles_dir = profiles_dir
         self._max_retries = 2
@@ -31,7 +33,12 @@ class StealthExecutor:
     async def __aenter__(self) -> "StealthExecutor":
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         pass
 
     async def execute(
@@ -164,17 +171,16 @@ class StealthExecutor:
                             await browser.page.wait_for_timeout(2000)
 
                         else:
-                            # Быстрый путь, если капчи нет
-                            try:
+                            import contextlib
+
+                            with contextlib.suppress(Exception):
                                 await browser.page.wait_for_selector(wait_selector, timeout=8000)
-                            except Exception:
-                                pass
 
                         # Забираем итоговый HTML
                         html = await browser.page.content()
                         bucket.report_success()
 
-                        records, next_url, page_meta = parse_page(
+                        records, next_url, _page_meta = parse_page(
                             html=html, plan=plan, page_url=url, phase=phase
                         )
 
@@ -207,8 +213,8 @@ class StealthExecutor:
                                 total_records += len(records)
 
                             base_url = url.split("?")[0]
-                            branch_stats[base_url]["current"] += len(records)
-                            current = branch_stats[base_url]["current"]
+                            branch_stats[base_url]["current"] = (branch_stats[base_url]["current"] or 0) + len(records)
+                            current = branch_stats[base_url]["current"] or 0
 
                             logger.info(f"TELEMETRY|PROGRESS|{base_url}|{current}|-1")
 

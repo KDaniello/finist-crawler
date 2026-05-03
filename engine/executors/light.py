@@ -2,6 +2,7 @@ import asyncio
 import logging
 import random
 from collections import defaultdict, deque
+from types import TracebackType
 from urllib.parse import urlparse
 
 from curl_cffi.requests import AsyncSession
@@ -61,13 +62,18 @@ class LightExecutor:
         if impersonate:
             kwargs["impersonate"] = impersonate
 
-        self._client = AsyncSession(**kwargs)
-        await self._client.__aenter__()
+        self._client = AsyncSession(**kwargs)  # type: ignore[arg-type]
+        await self._client.__aenter__()  # type: ignore[no-untyped-call]
 
         logger.info(f"[LightExecutor] Запущен с impersonate={impersonate}")
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         if self._client:
             await self._client.__aexit__(exc_type, exc_val, exc_tb)
             self._client = None
@@ -134,7 +140,7 @@ class LightExecutor:
                         "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                     )
 
-                resp = await self._client.get(url, proxies=proxies, headers=headers)
+                resp = await self._client.get(url, proxies=proxies, headers=headers)  # type: ignore[union-attr, arg-type]
 
                 if resp.status_code == 429:
                     bucket.report_rate_limited()
@@ -199,9 +205,9 @@ class LightExecutor:
                     detail_pages_crawled += 1
 
                     base_url = url.split("?")[0]
-                    branch_stats[base_url]["current"] += len(records)
+                    branch_stats[base_url]["current"] = (branch_stats[base_url]["current"] or 0) + len(records)
 
-                    current = branch_stats[base_url]["current"]
+                    current = branch_stats[base_url]["current"] or 0
 
                     # Определяем total для прогресс-бара.
                     # Для Steam НЕ берём total_reviews из API — там общее число
@@ -210,7 +216,7 @@ class LightExecutor:
                     if detail_limit > 0:
                         # Знаем точный лимит страниц → считаем максимум записей
                         records_per_page = len(records) if records else 50
-                        total_for_ui = detail_limit * records_per_page
+                        total_for_ui: int | None = detail_limit * records_per_page
                     else:
                         # Двухэтапный парсер (2GIS, Habr) — берём из API
                         api_meta = page_meta.get("raw_api_meta", {})
@@ -261,7 +267,7 @@ class LightExecutor:
             if not has_list and not has_detail:
                 break
 
-            batch_tasks = []
+            batch_tasks: list[tuple[str, str, int]] = []
 
             while len(batch_tasks) < plan.concurrency:
                 detail_limit_reached = detail_limit > 0 and detail_pages_crawled >= detail_limit
@@ -300,7 +306,7 @@ class LightExecutor:
         for url in urls:
             try:
                 await asyncio.sleep(random.uniform(0.7, 2.1))
-                await self._client.get(url, timeout=12.0)
+                await self._client.get(url, timeout=12.0)  # type: ignore[union-attr]
                 logger.debug(f"[Warmup] Успешный запрос на {url}")
             except Exception as e:
                 logger.debug(f"[Warmup] Не удалось прогреться на {url}: {e}")

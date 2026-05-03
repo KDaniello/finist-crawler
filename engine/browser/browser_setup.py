@@ -5,9 +5,11 @@ ImmortalBrowser — long-lived stealth browser session.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import time
 from pathlib import Path
+from types import TracebackType
 from typing import Any
 
 from browserforge.fingerprints import Screen
@@ -160,7 +162,7 @@ class ImmortalBrowser:
             f"[browser] starting | domain={self.domain} profile={profile_dir.name} {proxy_info}"
         )
 
-        self._cm = AsyncCamoufox(**kwargs)
+        self._cm = AsyncCamoufox(**kwargs)  # type: ignore[no-untyped-call]
 
         # AsyncCamoufox.__aenter__ возвращает разные типы в зависимости от версии и конфига.
         # _extract_context() определяет тип и возвращает нам гарантированный BrowserContext.
@@ -170,22 +172,19 @@ class ImmortalBrowser:
         if hasattr(raw_result, "contexts"):
             # Это Browser объект — создаем persistent context через стандартный Playwright API
             browser = raw_result
-            firefox = getattr(browser, "_browser_type", None) or browser
 
             # Пробуем через launch_persistent_context если есть доступ к BrowserType
             if hasattr(browser, "new_context"):
                 if browser.contexts:
                     self._context = browser.contexts[0]
                 else:
-                    self._context = await browser.new_context(
-                        user_data_dir=str(profile_dir),
-                    )
+                    self._context = await browser.new_context()
             else:
                 raise RuntimeError(f"[browser] Не удалось создать контекст из {type(browser)}")
 
         elif hasattr(raw_result, "pages") and hasattr(raw_result, "new_page"):
             # Это уже BrowserContext — отлично, берем напрямую
-            self._context = raw_result  # type: ignore
+            self._context = raw_result
 
         elif hasattr(raw_result, "firefox"):
             # Это Playwright объект (старый API Camoufox)
@@ -236,10 +235,8 @@ class ImmortalBrowser:
         logger.info(f"[browser] stopping | domain={self.domain} uptime={self.uptime:.0f}s")
 
         if self._page and not self._page.is_closed():
-            try:
+            with contextlib.suppress(Exception):
                 await self._page.close()
-            except Exception:
-                pass
 
         # Закрываем persistent context (сохраняет куки на диск автоматически)
         if self._context is not None:
@@ -273,7 +270,12 @@ class ImmortalBrowser:
         await self.start()
         return self
 
-    async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         await self.stop(exc_type, exc_value, traceback)
 
     async def _setup_network_interception(self) -> None:
@@ -302,10 +304,9 @@ class ImmortalBrowser:
                 await route.abort("aborted")
                 return
 
-            if self.block_trackers:
-                if any(domain in req.url for domain in blocked_domains):
-                    await route.abort("aborted")
-                    return
+            if self.block_trackers and any(domain in req.url for domain in blocked_domains):
+                await route.abort("aborted")
+                return
 
             await route.continue_()
 

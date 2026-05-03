@@ -1,3 +1,4 @@
+import contextlib
 import hashlib
 import json
 import logging
@@ -5,7 +6,7 @@ import re
 import urllib.parse
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Protocol
+from typing import Any, ClassVar, Protocol
 from urllib.parse import urljoin
 
 import jmespath
@@ -214,7 +215,7 @@ def build_plan(spec: dict[str, Any], config_overrides: dict[str, Any]) -> Crawle
     safe_headers = {k: str(v) for k, v in raw_headers.items()}
     impersonate_val = crawler_cfg.get("impersonate", "chrome120")
 
-    def _parse_fields(raw_fields: dict) -> dict[str, FieldRule]:
+    def _parse_fields(raw_fields: dict[str, Any]) -> dict[str, FieldRule]:
         res = {}
         for k, r in raw_fields.items():
             if isinstance(r, str):
@@ -278,11 +279,13 @@ class ExtractionStrategy(Protocol):
 
 
 class HTMLExtractor:
-    def extract(self, html: str, plan: CrawlerPlan, page_url: str, phase: str):
-        records = []
+    def extract(self, html: str, plan: CrawlerPlan, page_url: str, phase: str) -> tuple[list[dict[str, Any]], str | None, dict[str, Any]]:
+        records: list[dict[str, Any]] = []
         next_url = None
         i_selector = plan.detail_item_selector if phase == "detail" else plan.item_selector
         f_rules = plan.detail_fields if phase == "detail" else plan.fields
+        if f_rules is None:
+            f_rules = {}
         n_selector = (
             plan.detail_next_page_selector if phase == "detail" else plan.next_page_selector
         )
@@ -290,6 +293,8 @@ class HTMLExtractor:
         pag_mode = plan.detail_pagination_mode if phase == "detail" else plan.pagination_mode
 
         soup = BeautifulSoup(html, "html.parser")
+        if not i_selector:
+            return [], None, {}
         items = soup.select(i_selector)
 
         for item in items:
@@ -311,10 +316,7 @@ class HTMLExtractor:
                 )
                 if rule.regex and raw_text and raw_text != str(rule.default):
                     m = re.search(rule.regex, raw_text)
-                    if m:
-                        raw_text = m.group(1)
-                    else:
-                        raw_text = rule.default
+                    raw_text = m.group(1) if m else rule.default
                 record[field_name] = sanitize_html(raw_text) if field_name == "text" else raw_text
 
             if record:
@@ -347,13 +349,15 @@ class HTMLExtractor:
 
 
 class JSONExtractor:
-    def extract(self, html: str, plan: CrawlerPlan, page_url: str, phase: str):
-        records = []
+    def extract(self, html: str, plan: CrawlerPlan, page_url: str, phase: str) -> tuple[list[dict[str, Any]], str | None, dict[str, Any]]:
+        records: list[dict[str, Any]] = []
         next_url = None
         data = None
 
         i_selector = plan.detail_item_selector if phase == "detail" else plan.item_selector
         f_rules = plan.detail_fields if phase == "detail" else plan.fields
+        if f_rules is None:
+            f_rules = {}
         n_selector = (
             plan.detail_next_page_selector if phase == "detail" else plan.next_page_selector
         )
@@ -362,16 +366,14 @@ class JSONExtractor:
 
         text_strip = html.strip()
         if text_strip.startswith("{") or text_strip.startswith("["):
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 data = json.loads(text_strip)
-            except json.JSONDecodeError:
-                pass
 
         if not data:
             return records, next_url, {}
 
         search_target = {"_root": data} if isinstance(data, list) else data
-        actual_selector = i_selector
+        actual_selector = i_selector or ""
         if isinstance(data, list) and actual_selector.startswith("["):
             actual_selector = f"_root{actual_selector}"
 
@@ -468,7 +470,7 @@ class LentaSearchExtractor:
             logger.error(f"[LentaSearch] Невалидный JSON с {page_url}: {e}")
             return [], None, {}
 
-        matches: list[dict] = data.get("matches", [])
+        matches: list[dict[str, Any]] = data.get("matches", [])
         total_found: int = data.get("total_found", 0)
 
         if not matches:
@@ -476,7 +478,7 @@ class LentaSearchExtractor:
             return [], None, {}
 
         for item in matches:
-            item_type = item.get("type")
+            item_type = int(item.get("type", 0))
 
             # Фильтруем нетекстовые материалы (галереи, видео, онлайны)
             if item_type not in self._ALLOWED_TYPES:
@@ -499,7 +501,7 @@ class LentaSearchExtractor:
                 "excerpt": item.get("text", ""),
                 "created_at": _ts_to_iso(item.get("pubdate")),
                 "type": _LENTA_TYPES.get(item_type, str(item_type)),
-                "rubric": _LENTA_RUBRICS.get(item.get("bloc"), str(item.get("bloc", ""))),
+                "rubric": _LENTA_RUBRICS.get(int(item.get("bloc", 0)), str(item.get("bloc", ""))),
                 "image_url": item.get("image_url", ""),
                 "source": "lenta.ru",
             }
@@ -627,7 +629,7 @@ class SteamCursorExtractor:
     - Конвертация времени: минуты -> часы для playtime-полей
     """
 
-    _PLAYTIME_FIELDS = {"playtime_at_review_hours", "playtime_total_hours"}
+    _PLAYTIME_FIELDS: ClassVar[frozenset[str]] = frozenset({"playtime_at_review_hours", "playtime_total_hours"})
 
     def extract(
         self, html: str, plan: CrawlerPlan, page_url: str, phase: str
@@ -645,7 +647,9 @@ class SteamCursorExtractor:
             return [], None, {}
 
         f_rules = plan.detail_fields if phase == "detail" else plan.fields
-        items: list[dict] = data.get("reviews", [])
+        if f_rules is None:
+            f_rules = {}
+        items: list[dict[str, Any]] = data.get("reviews", [])
 
         if not items:
             logger.info(f"[SteamExtractor] Отзывов больше нет на {page_url}")
@@ -713,21 +717,23 @@ class SteamCursorExtractor:
 
 
 class RedditExtractor:
-    def extract(self, html: str, plan: CrawlerPlan, page_url: str, phase: str):
-        records = []
+    def extract(self, html: str, plan: CrawlerPlan, page_url: str, phase: str) -> tuple[list[dict[str, Any]], str | None, dict[str, Any]]:
+        records: list[dict[str, Any]] = []
         try:
             data = json.loads(html.strip())
         except json.JSONDecodeError:
             return records, None, {}
 
         f_rules = plan.detail_fields if phase == "detail" else plan.fields
+        if f_rules is None:
+            f_rules = {}
 
         if phase == "detail" and isinstance(data, list) and len(data) > 1:
             top_level = data[1].get("data", {}).get("children", [])
             post_info = data[0].get("data", {}).get("children", [{}])[0].get("data", {})
             post_title = post_info.get("title", "")
 
-            def extract_replies(children_list, depth=0):
+            def extract_replies(children_list: list[dict[str, Any]], depth: int = 0) -> None:
                 for child in children_list:
                     if child.get("kind") != "t1":
                         continue

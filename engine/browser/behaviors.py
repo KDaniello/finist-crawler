@@ -65,7 +65,7 @@ class HumanBehavior:
     Обходит поведенческие проверки Cloudflare/DataDome.
     """
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         self._page = page
         self._mx: float = 0.0
         self._my: float = 0.0
