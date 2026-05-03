@@ -103,6 +103,8 @@ class AppController:
             worker_target=run_universal_bot,
             specs=specs,
             config_overrides=overrides,
+            settings=get_settings(),
+            paths=get_paths(),
         )
 
         if session_id:
