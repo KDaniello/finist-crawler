@@ -4,12 +4,12 @@ import logging
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import flet as ft
 
-from core import get_paths, get_settings
 from core._openpyxl_compat import apply_openpyxl_compat
+from core.config import ProjectPaths, Settings
 from core.dispatcher import Dispatcher
 from core.file_manager import SessionManager
 from core.logger import LogManager
@@ -17,6 +17,13 @@ from core.resources import SystemMonitor
 from ui.theme import ThemeController
 
 logger = logging.getLogger(__name__)
+
+_WINDOW_DEFAULTS = {
+    "width": 1200,
+    "height": 800,
+    "min_width": 960,
+    "min_height": 640,
+}
 
 
 def _resolve_font(relative_path: str) -> str:
@@ -60,26 +67,29 @@ class AppController:
     def __init__(
         self,
         page: ft.Page,
+        paths: ProjectPaths,
+        settings: Settings,
+        log_manager: LogManager,
+        session_manager: SessionManager,
+        dispatcher: Dispatcher,
+        monitor: SystemMonitor,
         worker_target: Callable[..., None] | None = None,
     ) -> None:
         self.page = page
         self._worker_target = worker_target
-        self._paths = get_paths()
-        self._settings = get_settings()
+        self._paths = paths
+        self._settings = settings
 
         apply_openpyxl_compat()
 
-        self.log_manager = LogManager()
+        self.log_manager = log_manager
         self._log_queue = self.log_manager.setup(
             logs_dir=self._paths.logs_dir,
             debug=self._settings.DEBUG,
         )
-        self.session_manager = SessionManager(base_dir=self._paths.data_dir)
-        self.dispatcher = Dispatcher(
-            session_manager=self.session_manager,
-            log_queue=self._log_queue,
-        )
-        self.monitor = SystemMonitor()
+        self.session_manager = session_manager
+        self.dispatcher = dispatcher
+        self.monitor = monitor
 
         is_dark = page.platform_brightness != ft.Brightness.LIGHT
         self.theme = ThemeController(is_dark=is_dark)
@@ -109,8 +119,8 @@ class AppController:
             worker_target=self._worker_target,
             specs=specs,
             config_overrides=overrides,
-            settings=get_settings(),
-            paths=get_paths(),
+            settings=self._settings,
+            paths=self._paths,
         )
 
         if session_id:
@@ -147,7 +157,7 @@ class _PlaceholderPage:
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             ),
             expand=True,
-            alignment=ft.alignment.center,
+            alignment=ft.alignment.center,  # type: ignore[attr-defined]
         )
 
 
@@ -241,7 +251,7 @@ def _build_nav_bar(
                     ],
                     spacing=10,
                 ),
-                ft.Row(controls=nav_buttons, spacing=4),
+                ft.Row(controls=list[ft.Control](nav_buttons), spacing=4),
                 ft.Row(
                     [
                         ft.Row([status_dot, status_label], spacing=6),
@@ -260,42 +270,65 @@ def _build_nav_bar(
     )
 
 
+class _PageProtocol(Protocol):
+    def build(self) -> ft.Control: ...
+
+
 def main(page: ft.Page, worker_target: Callable[..., None] | None = None) -> None:
     """Точка входа Flet приложения."""
+    from core import get_paths, get_settings
+
     page.title = "Finist Crawler"
     page.theme_mode = ft.ThemeMode.DARK
-    page.window.width = 1200
-    page.window.height = 800
-    page.window.min_width = 960
-    page.window.min_height = 640
+    page.window.width = _WINDOW_DEFAULTS["width"]
+    page.window.height = _WINDOW_DEFAULTS["height"]
+    page.window.min_width = _WINDOW_DEFAULTS["min_width"]
+    page.window.min_height = _WINDOW_DEFAULTS["min_height"]
     page.padding = 0
     page.fonts = {
         "Inter": _resolve_font("assets/fonts/Inter-Regular.ttf"),
         "JetBrains Mono": _resolve_font("assets/fonts/JetBrainsMono-Regular.ttf"),
     }
 
-    ctrl = AppController(page, worker_target=worker_target)
+    paths = get_paths()
+    settings = get_settings()
+    log_manager = LogManager()
+    log_queue = log_manager.setup(logs_dir=paths.logs_dir, debug=settings.DEBUG)
+    session_manager = SessionManager(base_dir=paths.data_dir)
+    dispatcher = Dispatcher(session_manager=session_manager, log_queue=log_queue)
+    monitor = SystemMonitor()
+
+    ctrl = AppController(
+        page=page,
+        paths=paths,
+        settings=settings,
+        log_manager=log_manager,
+        session_manager=session_manager,
+        dispatcher=dispatcher,
+        monitor=monitor,
+        worker_target=worker_target,
+    )
     page.bgcolor = ctrl.theme.tokens.bg_primary
     page.theme_mode = ft.ThemeMode.DARK if ctrl.theme.is_dark else ft.ThemeMode.LIGHT
 
     try:
         from ui.pages.launcher import LauncherPage
 
-        launcher = LauncherPage(ctrl)
+        launcher: _PageProtocol = LauncherPage(ctrl)
     except ImportError:
         launcher = _PlaceholderPage("🚀 Запуск")
 
     try:
         from ui.pages.monitor import MonitorPage
 
-        monitor = MonitorPage(ctrl)
+        monitor: _PageProtocol = MonitorPage(ctrl)
     except ImportError:
         monitor = _PlaceholderPage("📊 Мониторинг")
 
     try:
         from ui.pages.results import ResultsPage
 
-        results = ResultsPage(ctrl)
+        results: _PageProtocol = ResultsPage(ctrl)
     except ImportError:
         results = _PlaceholderPage("📁 Результаты")
 
@@ -338,10 +371,10 @@ def main(page: ft.Page, worker_target: Callable[..., None] | None = None) -> Non
 
     ctrl.navigate = navigate
 
-    def on_window_event(e: ft.WindowEvent) -> None:
+    def on_window_event(e: ft.WindowEvent) -> None:  # type: ignore[type-arg]
         if e.type == ft.WindowEventType.CLOSE:
             ctrl.cleanup()
 
-    page.on_window_event = on_window_event
+    page.on_window_event = on_window_event  # type: ignore[attr-defined]
 
     navigate("launcher")
