@@ -4,6 +4,7 @@ Performance тест: Экспорт данных с O(1) по памяти.
 """
 
 import json
+import multiprocessing
 import os
 from pathlib import Path
 
@@ -21,7 +22,7 @@ def test_csv_export_memory_efficiency(tmp_path: Path):
     session_id = "perf_session"
     source = "massive_data"
 
-    writer = DataWriter(base_dir=tmp_path, session_id=session_id, source=source)
+    writer = DataWriter(base_dir=tmp_path, session_id=session_id, source=source, lock=multiprocessing.Lock())
     writer.source_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Генерируем массивный JSONL напрямую (чтобы не нагружать память списками Python)

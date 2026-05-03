@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from core.logger import setup_main_logging, stop_main_logging
+from core.logger import LogManager
 
 
 def _lock_grabber_worker(
@@ -66,7 +66,8 @@ def test_browser_lock_prevents_concurrent_access(tmp_path: Path):
     - Суммарное время >= 5 * 0.5s = 2.5s (доказывает строгую очередь, а не параллельность).
     """
     logs_dir = tmp_path / "logs"
-    log_queue = setup_main_logging(logs_dir=logs_dir, debug=False)
+    log_manager = LogManager()
+    log_queue = log_manager.setup(logs_dir=logs_dir, debug=False)
 
     ctx = multiprocessing.get_context("spawn")
     browser_lock = ctx.Lock()
@@ -97,7 +98,7 @@ def test_browser_lock_prevents_concurrent_access(tmp_path: Path):
             results.append(results_queue.get_nowait())
 
     finally:
-        stop_main_logging()
+        log_manager.stop()
         log_queue.close()
         log_queue.cancel_join_thread()
 

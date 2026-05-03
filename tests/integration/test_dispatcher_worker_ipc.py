@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 
 from core.dispatcher import Dispatcher, SessionManagerProtocol
-from core.logger import setup_main_logging, setup_worker_logging, stop_main_logging
+from core.logger import LogManager, setup_worker_logging
 
 
 class DummySessionManager(SessionManagerProtocol):
@@ -50,7 +50,8 @@ def test_dispatcher_and_logging_ipc(tmp_path: Path, browser_lock):
     logs_dir = tmp_path / "logs"
 
     # 1. Запускаем слушателя логов в главном процессе
-    log_queue = setup_main_logging(logs_dir=logs_dir, debug=True)
+    log_manager = LogManager()
+    log_queue = log_manager.setup(logs_dir=logs_dir, debug=True)
 
     try:
         session_mgr = DummySessionManager()
@@ -75,7 +76,7 @@ def test_dispatcher_and_logging_ipc(tmp_path: Path, browser_lock):
         assert dispatcher.is_running() is False
 
     finally:
-        stop_main_logging()
+        log_manager.stop()
         log_queue.close()
         log_queue.cancel_join_thread()
 

@@ -9,6 +9,8 @@ SessionManager -> DataWriter -> Файловая система ОС -> Эксп
 
 import csv
 import json
+import multiprocessing
+import time
 from pathlib import Path
 
 import openpyxl
@@ -47,7 +49,7 @@ def test_full_data_lifecycle(base_dir: Path):
     assert (base_dir / session_id).exists()
 
     # ШАГ 2: Инициализация райтера и запись батчей
-    writer = DataWriter(base_dir=base_dir, session_id=session_id, source="test_forum")
+    writer = DataWriter(base_dir=base_dir, session_id=session_id, source="test_forum", lock=multiprocessing.Lock())
 
     # Батч 1: ПЕРВАЯ запись должна иметь ПОЛНЫЙ набор полей (это определит заголовки Excel/CSV).
     batch_1 = [
@@ -129,7 +131,10 @@ def test_session_manager_lists_sessions(base_dir: Path):
     mgr = SessionManager(base_dir=base_dir)
 
     # Создаем несколько сессий с паузами (чтобы имена папок были уникальными)
-    session_ids = [mgr.create_session() for _ in range(3)]
+    session_ids = []
+    for _ in range(3):
+        session_ids.append(mgr.create_session())
+        time.sleep(0.01)
 
     # Список должен возвращаться от новой к старой
     listed = mgr.list_sessions()
@@ -141,7 +146,7 @@ def test_data_writer_no_data_returns_none(base_dir: Path):
     """
     Если JSONL файла нет, экспорт возвращает None без ошибок.
     """
-    writer = DataWriter(base_dir=base_dir, session_id="empty_session", source="ghost")
+    writer = DataWriter(base_dir=base_dir, session_id="empty_session", source="ghost", lock=multiprocessing.Lock())
 
     result_csv = writer.export("csv")
     result_xlsx = writer.export("xlsx")
@@ -155,7 +160,7 @@ def test_data_writer_concurrent_batches(base_dir: Path):
     Проверяет, что несколько последовательных батчей корректно дописываются
     в один JSONL файл (append-логика, а не перезапись).
     """
-    writer = DataWriter(base_dir=base_dir, session_id="concurrent", source="test")
+    writer = DataWriter(base_dir=base_dir, session_id="concurrent", source="test", lock=multiprocessing.Lock())
 
     for i in range(5):
         writer.save_batch([{"index": i, "data": f"batch_{i}"}])
