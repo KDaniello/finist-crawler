@@ -3,6 +3,17 @@ version: v2
 description: Гибридный парсер 2GIS (HTML Поиск -> Извлечение ID Regex -> JSON API Отзывов)
 flow: [list, detail]
 
+ui:
+  title: 2GIS
+  icon: "🗺️"
+  description: Отзывы на организации
+  param_label: Название организации
+  param_hint: "Вкусно и точка"
+  param_key: keyword
+  default_pages: 1
+  default_detail_pages: 0
+  tag: Отзывы
+
 crawler:
   render: static
   request_headers:

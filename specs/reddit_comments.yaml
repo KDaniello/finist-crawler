@@ -3,6 +3,17 @@ version: v3
 description: Умный рекурсивный JSON-скрапер Reddit
 flow: [list, detail]
 
+ui:
+  title: Reddit
+  icon: "💬"
+  description: Обсуждения и комментарии
+  param_label: Ключевое слово
+  param_hint: "chatgpt, python..."
+  param_key: keyword
+  default_pages: 2
+  default_detail_pages: 0
+  tag: Соцсети
+
 crawler:
   render: auto
   rotate_fingerprint: true

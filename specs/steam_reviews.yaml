@@ -6,6 +6,17 @@ description: >
   Название игры указывается вручную через game_name в config_overrides (необязательно).
 flow: [detail]
 
+ui:
+  title: Steam
+  icon: "🎮"
+  description: Отзывы на игры
+  param_label: App ID игры
+  param_hint: "1091500 (Cyberpunk 2077)"
+  param_key: app_id
+  default_pages: 1
+  default_detail_pages: 10
+  tag: Отзывы
+
 crawler:
   render: static
   impersonate: chrome131

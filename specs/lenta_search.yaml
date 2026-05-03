@@ -7,6 +7,17 @@ description: >
   Пользователь передаёт keyword через template_params.
 flow: [list, detail]
 
+ui:
+  title: Лента.ру
+  icon: "📡"
+  description: Новостные статьи
+  param_label: Ключевое слово
+  param_hint: "санкции, экономика..."
+  param_key: keyword
+  default_pages: 5
+  default_detail_pages: 0
+  tag: Новости
+
 crawler:
   render: static
   impersonate: chrome131

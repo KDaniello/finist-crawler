@@ -3,6 +3,17 @@ version: v2
 description: Двухэтапный парсер Хабра (Поиск -> Полные статьи через внутренний API)
 flow: [list, detail]
 
+ui:
+  title: Хабр
+  icon: "📰"
+  description: Статьи и публикации
+  param_label: Ключевое слово
+  param_hint: "Python, AI, DevOps..."
+  param_key: keyword
+  default_pages: 3
+  default_detail_pages: 0
+  tag: Технологии
+
 crawler:
   render: static
   request_headers:

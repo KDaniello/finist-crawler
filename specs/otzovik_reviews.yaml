@@ -3,6 +3,17 @@ version: v2
 description: Двухэтапный парсинг Отзовика (Camoufox - Точные селекторы)
 flow: [list, detail]
 
+ui:
+  title: Отзовик
+  icon: "⭐"
+  description: Отзывы на товары и услуги
+  param_label: URL страницы отзывов
+  param_hint: "https://otzovik.com/reviews/..."
+  param_key: direct_url
+  default_pages: 5
+  default_detail_pages: 0
+  tag: Отзывы
+
 crawler:
   render: browser
   request_headers:
