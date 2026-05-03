@@ -92,7 +92,7 @@
               "additionalProperties": false
             }
           },
-          "required": ["item_selector", "fields"]
+          "required": ["fields"]
         },
         "detail": {
           "type": "object",
@@ -129,9 +129,59 @@
               "additionalProperties": false
             }
           },
-          "required": ["item_selector", "fields"]
+          "required": ["fields"]
         }
       }
+    },
+    "ui": {
+      "type": "object",
+      "description": "UI-метаданные для отображения источника в интерфейсе пользователя",
+      "required": ["title", "description", "param_label", "param_key"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Краткое название источника для отображения в UI"
+        },
+        "icon": {
+          "type": "string",
+          "description": "Эмодзи-иконка источника"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Краткое описание для пользователя"
+        },
+        "param_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Подпись поля ввода (например, 'Ключевое слово')"
+        },
+        "param_hint": {
+          "type": "string",
+          "description": "Placeholder-подсказка в поле ввода"
+        },
+        "param_key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Ключ параметра в config_overrides.template_params"
+        },
+        "default_pages": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Количество страниц list-этапа по умолчанию"
+        },
+        "default_detail_pages": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Количество страниц detail-этапа по умолчанию. 0 = без ограничения"
+        },
+        "tag": {
+          "type": "string",
+          "description": "Категория источника для группировки в UI"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "$defs": {
