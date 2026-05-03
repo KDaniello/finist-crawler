@@ -10,87 +10,12 @@ from ui.app import AppController
 
 logger = logging.getLogger(__name__)
 
-SOURCES: list[dict[str, Any]] = [
-    {
-        "spec_name": "habr_search.yaml",
-        "title": "Хабр",
-        "icon": "📰",
-        "description": "Статьи и публикации",
-        "param_label": "Ключевое слово",
-        "param_hint": "Python, AI, DevOps...",
-        "param_key": "keyword",
-        "default_pages": 3,
-        "default_detail_pages": 0,
-        "tag": "Технологии",
-    },
-    {
-        "spec_name": "reddit_comments.yaml",
-        "title": "Reddit",
-        "icon": "💬",
-        "description": "Обсуждения и комментарии",
-        "param_label": "Ключевое слово",
-        "param_hint": "chatgpt, python...",
-        "param_key": "keyword",
-        "default_pages": 2,
-        "default_detail_pages": 0,
-        "tag": "Соцсети",
-    },
-    {
-        "spec_name": "steam_reviews.yaml",
-        "title": "Steam",
-        "icon": "🎮",
-        "description": "Отзывы на игры",
-        "param_label": "App ID игры",
-        "param_hint": "1091500 (Cyberpunk 2077)",
-        "param_key": "app_id",
-        "default_pages": 1,
-        "default_detail_pages": 10,
-        "tag": "Отзывы",
-    },
-    {
-        "spec_name": "twogis_search.yaml",
-        "title": "2GIS",
-        "icon": "🗺️",
-        "description": "Отзывы на организации",
-        "param_label": "Название организации",
-        "param_hint": "Вкусно и точка",
-        "param_key": "keyword",
-        "default_pages": 1,
-        "default_detail_pages": 0,
-        "tag": "Отзывы",
-    },
-    {
-        "spec_name": "otzovik_reviews.yaml",
-        "title": "Отзовик",
-        "icon": "⭐",
-        "description": "Отзывы на товары и услуги",
-        "param_label": "URL страницы отзывов",
-        "param_hint": "https://otzovik.com/reviews/...",
-        "param_key": "direct_url",
-        "default_pages": 5,
-        "default_detail_pages": 0,
-        "tag": "Отзывы",
-    },
-    {
-        "spec_name": "lenta_search.yaml",
-        "title": "Лента.ру",
-        "icon": "📡",
-        "description": "Новостные статьи",
-        "param_label": "Ключевое слово",
-        "param_hint": "санкции, экономика...",
-        "param_key": "keyword",
-        "default_pages": 5,
-        "default_detail_pages": 0,
-        "tag": "Новости",
-    },
-]
-
-
 class LauncherPage:
     """Страница запуска парсинга."""
 
-    def __init__(self, controller: AppController) -> None:
+    def __init__(self, controller: AppController, sources: list[dict[str, Any]]) -> None:
         self._ctrl = controller
+        self._sources = sources
         self._selected_source: dict[str, Any] | None = None
         self._cards: list[ft.Container] = []
 
@@ -158,7 +83,7 @@ class LauncherPage:
         t = self._ctrl.theme.tokens
         self._cards.clear()
 
-        for source in SOURCES:
+        for source in self._sources:
             card = self._build_source_card(source)
             self._cards.append(card)
 
