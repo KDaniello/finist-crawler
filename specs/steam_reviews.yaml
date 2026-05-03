@@ -6,6 +6,17 @@ description: >
   Название игры указывается вручную через game_name в config_overrides (необязательно).
 flow: [detail]
 
+ui:
+  title: Steam
+  icon: "🎮"
+  description: Отзывы на игры
+  param_label: App ID игры
+  param_hint: "1091500 (Cyberpunk 2077)"
+  param_key: app_id
+  default_pages: 1
+  default_detail_pages: 10
+  tag: Отзывы
+
 crawler:
   render: static
   impersonate: chrome131
@@ -21,15 +32,6 @@ crawler:
     concurrency: 3
     requests_per_second: 0.9
     request_timeout_sec: 20
-
-  list:
-    # Фиктивный блок — flow: [detail] означает, что list пропускается.
-    # Обязателен для валидации schema.json.
-    url_template: "https://store.steampowered.com/appreviews/{app_id}?json=1&filter=recent&language=all&num_per_page=50&cursor=*&cc=RU&l=russian"
-    item_selector: "reviews"
-    fields:
-      detail_url:
-        selector: "recommendationid"
 
   detail:
     # {app_id} подставляется из config_overrides.template_params.app_id

@@ -312,9 +312,17 @@ def main(page: ft.Page, worker_target: Callable[..., None] | None = None) -> Non
     page.theme_mode = ft.ThemeMode.DARK if ctrl.theme.is_dark else ft.ThemeMode.LIGHT
 
     try:
+        from engine.spec_loader import discover_sources
+
+        sources = discover_sources(paths.specs_dir)
+    except Exception:
+        logger.warning("Failed to discover sources from specs", exc_info=True)
+        sources = []
+
+    try:
         from ui.pages.launcher import LauncherPage
 
-        launcher: _PageProtocol = LauncherPage(ctrl)
+        launcher: _PageProtocol = LauncherPage(ctrl, sources)
     except ImportError:
         launcher = _PlaceholderPage("🚀 Запуск")
 

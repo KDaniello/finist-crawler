@@ -3,6 +3,17 @@ version: v2
 description: Двухэтапный парсер Хабра (Поиск -> Полные статьи через внутренний API)
 flow: [list, detail]
 
+ui:
+  title: Хабр
+  icon: "📰"
+  description: Статьи и публикации
+  param_label: Ключевое слово
+  param_hint: "Python, AI, DevOps..."
+  param_key: keyword
+  default_pages: 3
+  default_detail_pages: 0
+  tag: Технологии
+
 crawler:
   render: static
   request_headers:
@@ -13,9 +24,9 @@ crawler:
 
   limits:
     max_pages: 2 
-    # ФИКС: Хабр выдержит любую нагрузку
-    concurrency: 5
-    requests_per_second: 10.0
+    # Conservative defaults to avoid rate-limiting and IP blocks
+    concurrency: 3
+    requests_per_second: 3.0
 
   list:
     url_template: "https://habr.com/kek/v2/articles/?query={keyword}&order=relevance&fl=ru&hl=ru&page=1&perPage=20"

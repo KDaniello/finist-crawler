@@ -11,7 +11,7 @@ from yaml.error import YAMLError
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["SpecError", "load_spec"]
+__all__ = ["SpecError", "discover_sources", "load_spec"]
 
 
 class SpecError(Exception):
@@ -46,13 +46,10 @@ def _format_validation_error(e: ValidationError) -> str:
     Превращает техническую ошибку jsonschema в понятную для гуманитария.
     Например: "$.crawler.list.pagination.scroll_by_px должно быть >= 200".
     """
-    # Собираем путь к проблемному полю (например: crawler -> list -> fields)
     path = " -> ".join([str(p) for p in e.path]) if e.path else "Корень файла"
 
-    # Форматируем сообщение
     base_msg = f"Ошибка в поле [{path}]:\n- {e.message}"
 
-    # Добавляем контекст (что ожидалось)
     if e.validator == "required":
         return f"Отсутствует обязательное поле: {e.message}"
     if e.validator == "enum":
@@ -74,7 +71,6 @@ def load_spec(spec_name: str, specs_dir: Path) -> dict[str, Any]:
     Загружает, парсит YAML и валидирует его по schema.json.
     Использует lru_cache для экономии I/O.
     """
-    # 1. Нормализация имени и поиск файла
     if not (spec_name.endswith(".yaml") or spec_name.endswith(".yml")):
         spec_name += ".yaml"
 
@@ -88,7 +84,6 @@ def load_spec(spec_name: str, specs_dir: Path) -> dict[str, Any]:
     if not target_path.exists():
         raise SpecError(f"Файл спецификации не найден: {target_path.name}")
 
-    # 2. Парсинг YAML
     try:
         raw_content = target_path.read_text(encoding="utf-8")
         data = yaml.safe_load(raw_content)
@@ -101,7 +96,6 @@ def load_spec(spec_name: str, specs_dir: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise SpecError(f"Спецификация {target_path.name} должна быть словарем.")
 
-    # 3. Валидация по JSON Schema
     schema = _load_schema(specs_dir)
     if schema:
         try:
@@ -113,3 +107,53 @@ def load_spec(spec_name: str, specs_dir: Path) -> dict[str, Any]:
             raise SpecError(f"Ошибка конфигурации в {target_path.name}:\n{friendly_msg}") from e
 
     return data
+
+
+def discover_sources(specs_dir: Path) -> list[dict[str, Any]]:
+    """
+    Scans specs_dir for YAML files and extracts ui metadata from each.
+
+    Returns a list of dicts with keys:
+        spec_name, title, icon, description, param_label, param_hint,
+        param_key, default_pages, default_detail_pages, tag
+
+    Specs without a ``ui`` section are skipped.
+    """
+    sources: list[dict[str, Any]] = []
+
+    for path in sorted(specs_dir.glob("*.y*ml")):
+        if path.name == "schema.json":
+            continue
+
+        try:
+            data = load_spec(path.stem, specs_dir)
+        except SpecError:
+            logger.warning("Skipping invalid spec: %s", path.name)
+            continue
+
+        ui = data.get("ui")
+        if not isinstance(ui, dict):
+            continue
+
+        entry: dict[str, Any] = {"spec_name": path.name}
+        for key in (
+            "title",
+            "icon",
+            "description",
+            "param_label",
+            "param_hint",
+            "param_key",
+            "default_pages",
+            "default_detail_pages",
+            "tag",
+        ):
+            if key in ui:
+                entry[key] = ui[key]
+
+        if "title" not in entry:
+            continue
+
+        sources.append(entry)
+
+    sources.sort(key=lambda s: s.get("title", ""))
+    return sources
