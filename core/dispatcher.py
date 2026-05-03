@@ -6,6 +6,8 @@ from multiprocessing.context import SpawnProcess
 from multiprocessing.synchronize import Lock as LockType
 from typing import Any, Protocol
 
+from core.config import ProjectPaths, Settings
+
 logger = logging.getLogger(__name__)
 
 __all__ = ["Dispatcher", "SessionManagerProtocol", "WorkerCallable"]
@@ -24,6 +26,8 @@ class WorkerCallable(Protocol):
         config_overrides: dict[str, Any],
         log_queue: multiprocessing.Queue[Any],
         browser_lock: LockType,
+        settings: Settings,
+        paths: ProjectPaths,
     ) -> None: ...
 
 
@@ -64,7 +68,12 @@ class Dispatcher:
         return self._current_session_id
 
     def start_tasks(
-        self, worker_target: WorkerCallable, specs: list[str], config_overrides: dict[str, Any]
+        self,
+        worker_target: WorkerCallable,
+        specs: list[str],
+        config_overrides: dict[str, Any],
+        settings: Settings,
+        paths: ProjectPaths,
     ) -> str | None:
         """
         Запускает парсинг переданных спецификаций. Каждая спецификация — отдельный процесс.
@@ -92,6 +101,8 @@ class Dispatcher:
                         config_overrides,
                         self._log_queue,
                         self._browser_lock,
+                        settings,
+                        paths,
                     ),
                     name=f"Worker-{spec_name}",
                     daemon=True,  # Воркер умрет вместе с главным процессом
