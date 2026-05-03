@@ -296,7 +296,7 @@ def main(page: ft.Page, worker_target: Callable[..., None] | None = None) -> Non
     log_queue = log_manager.setup(logs_dir=paths.logs_dir, debug=settings.DEBUG)
     session_manager = SessionManager(base_dir=paths.data_dir)
     dispatcher = Dispatcher(session_manager=session_manager, log_queue=log_queue)
-    monitor = SystemMonitor()
+    sys_monitor = SystemMonitor()
 
     ctrl = AppController(
         page=page,
@@ -305,7 +305,7 @@ def main(page: ft.Page, worker_target: Callable[..., None] | None = None) -> Non
         log_manager=log_manager,
         session_manager=session_manager,
         dispatcher=dispatcher,
-        monitor=monitor,
+        monitor=sys_monitor,
         worker_target=worker_target,
     )
     page.bgcolor = ctrl.theme.tokens.bg_primary
@@ -332,7 +332,7 @@ def main(page: ft.Page, worker_target: Callable[..., None] | None = None) -> Non
     except ImportError:
         results = _PlaceholderPage("📁 Результаты")
 
-    pages = {
+    pages: dict[str, _PageProtocol] = {
         "launcher": launcher,
         "monitor": monitor,
         "results": results,

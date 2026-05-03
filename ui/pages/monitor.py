@@ -7,6 +7,7 @@ from typing import Any
 
 import flet as ft
 
+from core.resources import SystemStats
 from core.telemetry import TelemetryEvent, TelemetryEventType
 from ui.app import AppController
 
@@ -127,7 +128,7 @@ class MonitorPage:
             bgcolor=t.accent_danger,
             border_radius=8,
             padding=ft.padding.symmetric(horizontal=20, vertical=10),
-            on_click=self._on_stop,
+            on_click=self._on_stop,  # type: ignore[arg-type]
             ink=True,
             visible=False,
         )
@@ -385,7 +386,7 @@ class MonitorPage:
                 logger.debug("Ошибка мониторинга: %s", e)
             time.sleep(2.0)
 
-    async def _update_resources_ui(self, stats: object) -> None:
+    async def _update_resources_ui(self, stats: SystemStats) -> None:
         t = self._ctrl.theme.tokens
         self._cpu_bar.value = stats.cpu_percent / 100
         self._cpu_text.value = f"{stats.cpu_percent:.0f}%"
