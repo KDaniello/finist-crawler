@@ -8,7 +8,6 @@ Invariant: tests never import bots/ directly.
 from __future__ import annotations
 
 import sys
-from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 

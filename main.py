@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import multiprocessing
-from collections.abc import Callable
 
 
 def main() -> None:
@@ -17,10 +16,9 @@ def main() -> None:
 
     setup_environment()
 
-    from bots.universal_bot import run_universal_bot
-
     import flet as ft
 
+    from bots.universal_bot import run_universal_bot
     from ui.app import main as app_main
 
     def flet_target(page: ft.Page) -> None:

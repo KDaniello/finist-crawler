@@ -8,7 +8,7 @@ from typing import Any
 
 import flet as ft
 
-from core import get_paths, get_settings, setup_environment
+from core import get_paths, get_settings
 from core._openpyxl_compat import apply_openpyxl_compat
 from core.dispatcher import Dispatcher
 from core.file_manager import SessionManager
