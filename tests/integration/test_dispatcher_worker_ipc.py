@@ -43,8 +43,10 @@ def test_dispatcher_and_logging_ipc(tmp_path: Path, browser_lock):
     log_queue = log_manager.setup(logs_dir=logs_dir, debug=True)
 
     try:
-        mock_settings = MagicMock(spec=Settings)
-        mock_paths = MagicMock(spec=ProjectPaths)
+        from core.config import ProjectPaths, Settings
+
+        real_settings = Settings()
+        real_paths = ProjectPaths()
 
         session_mgr = DummySessionManager()
         dispatcher = Dispatcher(session_mgr, log_queue)
@@ -53,8 +55,8 @@ def test_dispatcher_and_logging_ipc(tmp_path: Path, browser_lock):
             worker_target=_dummy_ipc_worker,
             specs=["ipc_test"],
             config_overrides={},
-            settings=mock_settings,
-            paths=mock_paths,
+            settings=real_settings,
+            paths=real_paths,
         )
 
         assert session_id == "session_ipc_123"

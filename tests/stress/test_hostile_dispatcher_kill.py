@@ -2,7 +2,6 @@ import multiprocessing
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
 
 import psutil
 
@@ -43,8 +42,8 @@ def test_stop_all_leaves_no_orphan_processes(tmp_path: Path):
     log_queue = log_manager.setup(logs_dir=logs_dir, debug=False)
 
     try:
-        mock_settings = MagicMock(spec=Settings)
-        mock_paths = MagicMock(spec=ProjectPaths)
+        real_settings = Settings()
+        real_paths = ProjectPaths()
 
         session_mgr = DummySessionManager()
         dispatcher = Dispatcher(session_mgr, log_queue)
@@ -53,8 +52,8 @@ def test_stop_all_leaves_no_orphan_processes(tmp_path: Path):
             worker_target=_endless_worker,
             specs=["site_a", "site_b", "site_c"],
             config_overrides={},
-            settings=mock_settings,
-            paths=mock_paths,
+            settings=real_settings,
+            paths=real_paths,
         )
 
         assert session_id is not None
