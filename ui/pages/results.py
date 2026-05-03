@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 import logging
+import multiprocessing
 from pathlib import Path
+from typing import Any
 
 import flet as ft
 
 from core.file_manager import DataWriter
+from ui.app import AppController
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +17,7 @@ logger = logging.getLogger(__name__)
 class ResultsPage:
     """Страница просмотра и экспорта результатов парсинга."""
 
-    def __init__(self, controller: object) -> None:
+    def __init__(self, controller: AppController) -> None:
         self._ctrl = controller
         self._sessions_col = ft.Column([], spacing=8)
         self._preview_col = ft.Column([], spacing=4, scroll=ft.ScrollMode.AUTO)
@@ -190,7 +193,7 @@ class ResultsPage:
 
     def _build_session_card(self, session_dir: Path) -> ft.Control:
         t = self._ctrl.theme.tokens
-        source_rows = []
+        source_rows: list[ft.Control] = []
 
         for source_dir in sorted(session_dir.iterdir()):
             if not source_dir.is_dir():
@@ -201,7 +204,9 @@ class ResultsPage:
 
             count = self._count_records(jsonl_file)
 
-            def _btn(label: str, color: str, sd=source_dir, fmt="csv"):
+            def _btn(
+                label: str, color: str, sd: Path = source_dir, fmt: str = "csv"
+            ) -> ft.Container:
                 return ft.Container(
                     content=ft.Text(
                         label,
@@ -335,6 +340,7 @@ class ResultsPage:
                 base_dir=self._ctrl._paths.data_dir,
                 session_id=session_id,
                 source=source_dir.name,
+                lock=multiprocessing.Lock(),
             )
             output = writer.export(fmt=fmt)
             if output:
@@ -343,7 +349,7 @@ class ResultsPage:
                 self._show_snack("Нет данных для экспорта", t.accent_warn)
         except Exception as e:
             logger.error("Ошибка экспорта: %s", e)
-            self._show_snack(f"Ошибка: {e}", t.accent_danger)
+            self._show_snack("Не удалось экспортировать данные", t.accent_danger)
 
     def _preview(self, jsonl_file: Path) -> None:
         """
@@ -355,7 +361,7 @@ class ResultsPage:
         self._preview_col.controls.clear()
 
         try:
-            records: list[dict] = []
+            records: list[dict[str, Any]] = []
             with open(jsonl_file, encoding="utf-8") as f:
                 for i, line in enumerate(f):
                     if i >= 20:
@@ -376,7 +382,7 @@ class ResultsPage:
                 all_keys: list[str] = []
                 seen: set[str] = set()
                 for rec in records:
-                    for k in rec.keys():
+                    for k in rec:
                         if k not in seen and k not in ("metadata", "external_id"):
                             all_keys.append(k)
                             seen.add(k)
@@ -405,7 +411,7 @@ class ResultsPage:
                             width=col_width,
                         )
                     )
-                self._preview_col.controls.append(ft.Row(header_cells, spacing=8))
+                self._preview_col.controls.append(ft.Row(list[ft.Control](header_cells), spacing=8))
                 self._preview_col.controls.append(ft.Divider(color=t.border, height=1))
 
                 # Строки данных
@@ -436,17 +442,17 @@ class ResultsPage:
                         )
                     self._preview_col.controls.append(
                         ft.Container(
-                            content=ft.Row(cells, spacing=8),
+                            content=ft.Row(list[ft.Control](cells), spacing=8),
                             bgcolor=bg,
                             border_radius=4,
                             padding=ft.padding.symmetric(horizontal=4, vertical=3),
                         )
                     )
 
-        except (json.JSONDecodeError, OSError) as e:
+        except (json.JSONDecodeError, OSError):
             self._preview_col.controls.append(
                 ft.Text(
-                    f"Ошибка: {e}",
+                    "Не удалось прочитать файл данных",
                     color=t.accent_danger,
                     font_family="Inter",
                 )
@@ -455,7 +461,7 @@ class ResultsPage:
         self._ctrl.page.update()
 
     def _show_snack(self, message: str, bgcolor: str) -> None:
-        self._ctrl.page.snack_bar = ft.SnackBar(
+        self._ctrl.page.snack_bar = ft.SnackBar(  # type: ignore[attr-defined]
             content=ft.Text(
                 message,
                 color="#FFFFFF",
@@ -463,5 +469,5 @@ class ResultsPage:
             ),
             bgcolor=bgcolor,
         )
-        self._ctrl.page.snack_bar.open = True
+        self._ctrl.page.snack_bar.open = True  # type: ignore[attr-defined]
         self._ctrl.page.update()

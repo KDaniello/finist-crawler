@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import flet as ft
 
 from core import JobConfig
+from ui.app import AppController
 
 logger = logging.getLogger(__name__)
 
-SOURCES = [
+SOURCES: list[dict[str, Any]] = [
     {
         "spec_name": "habr_search.yaml",
         "title": "Хабр",
@@ -87,9 +89,9 @@ SOURCES = [
 class LauncherPage:
     """Страница запуска парсинга."""
 
-    def __init__(self, controller: object) -> None:
+    def __init__(self, controller: AppController) -> None:
         self._ctrl = controller
-        self._selected_source: dict | None = None
+        self._selected_source: dict[str, Any] | None = None
         self._cards: list[ft.Container] = []
 
         t = self._ctrl.theme.tokens
@@ -140,7 +142,7 @@ class LauncherPage:
             bgcolor=t.accent,
             border_radius=10,
             padding=ft.padding.symmetric(horizontal=32, vertical=14),
-            on_click=self._on_start,
+            on_click=self._on_start,  # type: ignore[arg-type]
             ink=True,
             opacity=0.4,
             disabled=True,
@@ -162,11 +164,11 @@ class LauncherPage:
 
         # Сетка 3×2
         row1 = ft.Row(
-            controls=self._cards[:3],
+            controls=list[ft.Control](self._cards[:3]),
             spacing=12,
         )
         row2 = ft.Row(
-            controls=self._cards[3:],
+            controls=list[ft.Control](self._cards[3:]),
             spacing=12,
         )
         source_grid = ft.Column([row1, row2], spacing=12)
@@ -288,7 +290,7 @@ class LauncherPage:
             bgcolor=t.bg_primary,
         )
 
-    def _build_source_card(self, source: dict) -> ft.Container:
+    def _build_source_card(self, source: dict[str, Any]) -> ft.Container:
         t = self._ctrl.theme.tokens
 
         tag_colors = {
@@ -344,7 +346,7 @@ class LauncherPage:
             bgcolor=t.bg_secondary,
             border=ft.border.all(1, t.border),
             padding=16,
-            on_click=self._on_card_click,
+            on_click=self._on_card_click,  # type: ignore[arg-type]
             ink=True,
             animate=ft.Animation(150, ft.AnimationCurve.EASE_OUT),
         )
@@ -357,8 +359,8 @@ class LauncherPage:
             card.border = ft.border.all(1, t.border)
             card.bgcolor = t.bg_secondary
 
-        e.control.border = ft.border.all(2, t.accent)
-        e.control.bgcolor = ft.Colors.with_opacity(0.06, t.accent)
+        e.control.border = ft.border.all(2, t.accent)  # type: ignore[attr-defined]
+        e.control.bgcolor = ft.Colors.with_opacity(0.06, t.accent)  # type: ignore[attr-defined]
 
         self._selected_source = source
         self._param_field.label = source["param_label"]
@@ -396,18 +398,33 @@ class LauncherPage:
             self._ctrl.page.update()
             return
 
+        if source["param_key"] == "app_id" and not param_value.isdigit():
+            self._status_text.value = "App ID должен быть числом (например, 1091500)"
+            self._status_text.color = t.accent_danger
+            self._ctrl.page.update()
+            return
+
+        if source["param_key"] == "direct_url" and not param_value.startswith("http"):
+            self._status_text.value = "Введите корректный URL (https://...)"
+            self._status_text.color = t.accent_danger
+            self._ctrl.page.update()
+            return
+
+        max_pages = int(self._pages_slider.value or 1)
+        detail_pages = int(self._detail_slider.value or 0)
+
         if source["param_key"] == "direct_url":
             job = JobConfig(
                 spec_name=source["spec_name"],
-                max_pages=int(self._pages_slider.value),
-                detail_max_pages=int(self._detail_slider.value),
+                max_pages=max_pages,
+                detail_max_pages=detail_pages,
                 direct_urls=[param_value],
             )
         else:
             job = JobConfig(
                 spec_name=source["spec_name"],
-                max_pages=int(self._pages_slider.value),
-                detail_max_pages=int(self._detail_slider.value),
+                max_pages=max_pages,
+                detail_max_pages=detail_pages,
                 template_params={source["param_key"]: param_value},
             )
 

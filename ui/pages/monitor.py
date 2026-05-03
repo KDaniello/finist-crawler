@@ -6,7 +6,9 @@ import threading
 
 import flet as ft
 
+from core.resources import SystemStats
 from core.telemetry import TelemetryEvent, TelemetryEventType
+from ui.app import AppController
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +51,7 @@ class MonitorPage:
 
     MAX_LOG_LINES = 100
 
-    def __init__(self, controller: object) -> None:
+    def __init__(self, controller: AppController) -> None:
         self._ctrl = controller
         self._branch_bars: dict[str, ft.ProgressBar] = {}
         self._branch_texts: dict[str, ft.Text] = {}
@@ -125,7 +127,7 @@ class MonitorPage:
             bgcolor=t.accent_danger,
             border_radius=8,
             padding=ft.padding.symmetric(horizontal=20, vertical=10),
-            on_click=self._on_stop,
+            on_click=self._on_stop,  # type: ignore[arg-type]
             ink=True,
             visible=False,
         )
@@ -340,7 +342,6 @@ class MonitorPage:
         Вызывается при каждом переходе на страницу мониторинга.
         Сбрасывает старые данные если парсинг уже завершён.
         """
-        t = self._ctrl.theme.tokens
 
         # Если новый парсинг — сбрасываем состояние
         if not self._is_monitoring:
@@ -383,7 +384,7 @@ class MonitorPage:
                 logger.debug("Ошибка мониторинга: %s", e)
             time.sleep(2.0)
 
-    async def _update_resources_ui(self, stats: object) -> None:
+    async def _update_resources_ui(self, stats: SystemStats) -> None:
         t = self._ctrl.theme.tokens
         self._cpu_bar.value = stats.cpu_percent / 100
         self._cpu_text.value = f"{stats.cpu_percent:.0f}%"
