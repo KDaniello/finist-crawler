@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import asyncio
+import contextlib
 import logging
 import multiprocessing
 from typing import Any
 
-from core import DataWriter, get_paths, get_settings, setup_worker_logging
+from core import DataWriter, ProjectPaths, Settings, setup_worker_logging
 from engine import CrawlerPlan, FallbackOrchestrator, build_plan, load_spec
 
 logger = logging.getLogger(__name__)
@@ -15,19 +18,18 @@ def run_universal_bot(
     spec_name: str,
     session_id: str,
     config_overrides: dict[str, Any],
-    log_queue: multiprocessing.Queue,
+    log_queue: multiprocessing.Queue[Any],
     browser_lock: Any,
+    settings: Settings,
+    paths: ProjectPaths,
 ) -> None:
     setup_worker_logging(log_queue)
-    settings = get_settings()
-    paths = get_paths()
 
     logger.name = f"Bot-{spec_name}"
     logger.info(f"🚀 Процесс парсинга запущен (Session: {session_id[:8]}...)")
 
     async def _async_run() -> None:
         try:
-            # 1. Ядро само разберется с шаблонами URL
             spec_data = load_spec(spec_name, paths.specs_dir)
             plan: CrawlerPlan = build_plan(spec_data, config_overrides)
 
@@ -35,7 +37,6 @@ def run_universal_bot(
                 "source_key", spec_name.replace(".yaml", "").replace(".yml", "")
             )
 
-            # 2. Инициализация писателя
             writer = DataWriter(
                 base_dir=paths.data_dir,
                 session_id=session_id,
@@ -47,7 +48,6 @@ def run_universal_bot(
                 if records:
                     writer.save_batch(records)
 
-            # 3. Запуск оркестратора
             orchestrator = FallbackOrchestrator(
                 browser_lock=browser_lock,
                 profiles_dir=paths.profiles_dir,
@@ -75,7 +75,5 @@ def run_universal_bot(
         finally:
             logger.info(f"🏁 Процесс [{spec_name}] завершает работу.")
 
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(_async_run())
-    except KeyboardInterrupt:
-        pass
