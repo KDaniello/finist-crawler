@@ -204,7 +204,9 @@ class ResultsPage:
 
             count = self._count_records(jsonl_file)
 
-            def _btn(label: str, color: str, sd: Path = source_dir, fmt: str = "csv") -> ft.Container:
+            def _btn(
+                label: str, color: str, sd: Path = source_dir, fmt: str = "csv"
+            ) -> ft.Container:
                 return ft.Container(
                     content=ft.Text(
                         label,

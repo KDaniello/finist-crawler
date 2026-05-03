@@ -3,7 +3,6 @@ from __future__ import annotations
 import datetime
 import logging
 import threading
-from typing import Any
 
 import flet as ft
 

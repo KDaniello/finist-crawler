@@ -1,10 +1,3 @@
-# tests/unit/ui/test_app_controller.py
-"""
-Tests for AppController — worker_target injected via constructor.
-
-Invariant: tests never import bots/ directly.
-"""
-
 from __future__ import annotations
 
 import sys
@@ -15,10 +8,6 @@ import pytest
 
 from core.job_config import JobConfig
 from ui.app import AppController, main
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -49,6 +38,28 @@ def fake_settings() -> MagicMock:
 
 
 @pytest.fixture()
+def fake_log_manager() -> MagicMock:
+    mgr = MagicMock()
+    mgr.setup.return_value = MagicMock()
+    return mgr
+
+
+@pytest.fixture()
+def fake_session_manager() -> MagicMock:
+    return MagicMock()
+
+
+@pytest.fixture()
+def fake_dispatcher() -> MagicMock:
+    return MagicMock()
+
+
+@pytest.fixture()
+def fake_monitor() -> MagicMock:
+    return MagicMock()
+
+
+@pytest.fixture()
 def fake_worker() -> MagicMock:
     return MagicMock()
 
@@ -58,44 +69,50 @@ def ctrl(
     fake_page: MagicMock,
     fake_paths: MagicMock,
     fake_settings: MagicMock,
+    fake_log_manager: MagicMock,
+    fake_session_manager: MagicMock,
+    fake_dispatcher: MagicMock,
+    fake_monitor: MagicMock,
     fake_worker: MagicMock,
 ) -> AppController:
-    with (
-        patch("ui.app.get_paths", return_value=fake_paths),
-        patch("ui.app.get_settings", return_value=fake_settings),
-        patch("ui.app.apply_openpyxl_compat"),
-        patch("ui.app.LogManager") as mock_log_mgr_cls,
-        patch("ui.app.SessionManager"),
-        patch("ui.app.Dispatcher"),
-        patch("ui.app.SystemMonitor"),
-    ):
-        mock_log_mgr_cls.return_value.setup.return_value = MagicMock()
-        return AppController(page=fake_page, worker_target=fake_worker)
-
-
-# ---------------------------------------------------------------------------
-# TestAppControllerConstruction
-# ---------------------------------------------------------------------------
+    with patch("ui.app.apply_openpyxl_compat"):
+        return AppController(
+            page=fake_page,
+            paths=fake_paths,
+            settings=fake_settings,
+            log_manager=fake_log_manager,
+            session_manager=fake_session_manager,
+            dispatcher=fake_dispatcher,
+            monitor=fake_monitor,
+            worker_target=fake_worker,
+        )
 
 
 class TestAppControllerConstruction:
     def test_no_bots_import_on_construction(
-        self, fake_page: MagicMock, fake_paths: MagicMock, fake_settings: MagicMock
+        self,
+        fake_page: MagicMock,
+        fake_paths: MagicMock,
+        fake_settings: MagicMock,
+        fake_log_manager: MagicMock,
+        fake_session_manager: MagicMock,
+        fake_dispatcher: MagicMock,
+        fake_monitor: MagicMock,
     ) -> None:
         sys.modules.pop("bots.universal_bot", None)
         sys.modules.pop("bots", None)
 
-        with (
-            patch("ui.app.get_paths", return_value=fake_paths),
-            patch("ui.app.get_settings", return_value=fake_settings),
-            patch("ui.app.apply_openpyxl_compat"),
-            patch("ui.app.LogManager") as mock_log_mgr_cls,
-            patch("ui.app.SessionManager"),
-            patch("ui.app.Dispatcher"),
-            patch("ui.app.SystemMonitor"),
-        ):
-            mock_log_mgr_cls.return_value.setup.return_value = MagicMock()
-            AppController(page=fake_page, worker_target=MagicMock())
+        with patch("ui.app.apply_openpyxl_compat"):
+            AppController(
+                page=fake_page,
+                paths=fake_paths,
+                settings=fake_settings,
+                log_manager=fake_log_manager,
+                session_manager=fake_session_manager,
+                dispatcher=fake_dispatcher,
+                monitor=fake_monitor,
+                worker_target=MagicMock(),
+            )
 
         assert "bots.universal_bot" not in sys.modules
         assert "bots" not in sys.modules
@@ -113,11 +130,6 @@ class TestAppControllerConstruction:
         assert "bots.universal_bot" not in sys.modules
 
 
-# ---------------------------------------------------------------------------
-# TestStartParsing
-# ---------------------------------------------------------------------------
-
-
 class TestStartParsing:
     def test_returns_false_when_running(self, ctrl: AppController) -> None:
         ctrl.dispatcher.is_running = MagicMock(return_value=True)  # type: ignore[method-assign]
@@ -131,19 +143,26 @@ class TestStartParsing:
         assert result is False
 
     def test_returns_false_when_no_worker_target(
-        self, fake_page: MagicMock, fake_paths: MagicMock, fake_settings: MagicMock
+        self,
+        fake_page: MagicMock,
+        fake_paths: MagicMock,
+        fake_settings: MagicMock,
+        fake_log_manager: MagicMock,
+        fake_session_manager: MagicMock,
+        fake_dispatcher: MagicMock,
+        fake_monitor: MagicMock,
     ) -> None:
-        with (
-            patch("ui.app.get_paths", return_value=fake_paths),
-            patch("ui.app.get_settings", return_value=fake_settings),
-            patch("ui.app.apply_openpyxl_compat"),
-            patch("ui.app.LogManager") as mock_log_mgr_cls,
-            patch("ui.app.SessionManager"),
-            patch("ui.app.Dispatcher"),
-            patch("ui.app.SystemMonitor"),
-        ):
-            mock_log_mgr_cls.return_value.setup.return_value = MagicMock()
-            ctrl_no_worker = AppController(page=fake_page, worker_target=None)
+        with patch("ui.app.apply_openpyxl_compat"):
+            ctrl_no_worker = AppController(
+                page=fake_page,
+                paths=fake_paths,
+                settings=fake_settings,
+                log_manager=fake_log_manager,
+                session_manager=fake_session_manager,
+                dispatcher=fake_dispatcher,
+                monitor=fake_monitor,
+                worker_target=None,
+            )
 
         ctrl_no_worker.dispatcher.is_running = MagicMock(return_value=False)  # type: ignore[method-assign]
         job = JobConfig(spec_name="habr_search.yaml")
@@ -160,11 +179,6 @@ class TestStartParsing:
         assert ctrl.active_specs == ["habr_search.yaml"]
 
 
-# ---------------------------------------------------------------------------
-# TestAppControllerPublicAPI
-# ---------------------------------------------------------------------------
-
-
 class TestAppControllerPublicAPI:
     def test_public_attributes_exist(self, ctrl: AppController) -> None:
         assert hasattr(ctrl, "is_running")
@@ -174,11 +188,6 @@ class TestAppControllerPublicAPI:
         assert hasattr(ctrl, "navigate")
         assert hasattr(ctrl, "theme")
         assert hasattr(ctrl, "monitor")
-
-
-# ---------------------------------------------------------------------------
-# TestMainFunction
-# ---------------------------------------------------------------------------
 
 
 class TestMainFunction:
