@@ -45,6 +45,7 @@ crawler:
   # =======================================================
   detail:
     # {} - сюда движок подставит ID из поля detail_url (из 1 этапа).
+    # Public API key — if 2GIS rotates it, update here
     url_template: "https://public-api.reviews.2gis.com/3.0/branches/{}/reviews?limit=50&offset=0&is_advertiser=false&fields=meta.providers,meta.branch_rating,meta.branch_reviews_count,meta.total_count,reviews.hiding_reason,reviews.emojis,reviews.trust_factors&without_my_first_review=false&rated=true&sort_by=trust&key=6e7e1929-4ea9-4a5d-8c05-d601860389bd&locale=ru_RU"
     extraction_mode: json
     item_selector: "reviews"
