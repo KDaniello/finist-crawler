@@ -240,6 +240,6 @@ class TestLightExecutorExecute:
         executor._client.get.return_value = resp
         mock_parse_page.return_value = ([{"id": 1}], None, {})
 
-        total_records, stats = await executor.execute(plan, mock_save_cb)
+        _total_records, stats = await executor.execute(plan, mock_save_cb)
 
         assert stats["pages_crawled"] == 1

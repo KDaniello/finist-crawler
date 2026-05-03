@@ -11,9 +11,10 @@ from pathlib import Path
 from typing import Any
 
 import psutil
+import pytest
 
 from core.dispatcher import Dispatcher, SessionManagerProtocol
-from core.logger import setup_main_logging, stop_main_logging
+from core.logger import LogManager
 
 
 class DummySessionManager(SessionManagerProtocol):
@@ -42,13 +43,15 @@ def _endless_worker(
         time.sleep(0.1)
 
 
+@pytest.mark.stress
 def test_stop_all_leaves_no_orphan_processes(tmp_path: Path):
     """
     СЦЕНАРИЙ: Запускаем 3 бесконечных воркера. Вызываем stop_all() (как при закрытии UI).
     ОЖИДАНИЕ: Все дочерние процессы Python мертвы. Нет утечек процессов в ОС.
     """
     logs_dir = tmp_path / "logs"
-    log_queue = setup_main_logging(logs_dir=logs_dir, debug=False)
+    log_manager = LogManager()
+    log_queue = log_manager.setup(logs_dir=logs_dir, debug=False)
 
     try:
         session_mgr = DummySessionManager()
@@ -64,7 +67,7 @@ def test_stop_all_leaves_no_orphan_processes(tmp_path: Path):
         assert session_id is not None
 
         # Даём процессам время на старт
-        time.sleep(2.0)
+        time.sleep(0.5)
 
         # Проверяем, что все 3 воркера живы
         assert dispatcher.is_running() is True
@@ -78,8 +81,8 @@ def test_stop_all_leaves_no_orphan_processes(tmp_path: Path):
         # ЖЕСТКАЯ ОСТАНОВКА (симуляция закрытия окна приложения)
         dispatcher.stop_all()
 
-        # Даём ОС 2 секунды на финальную уборку
-        time.sleep(2.0)
+        # Даём ОС время на финальную уборку
+        time.sleep(0.5)
 
         # ПРОВЕРКА: Все PID-ы мертвы
         for pid in pids_before:
@@ -91,6 +94,6 @@ def test_stop_all_leaves_no_orphan_processes(tmp_path: Path):
         assert dispatcher.is_running() is False
 
     finally:
-        stop_main_logging()
+        log_manager.stop()
         log_queue.close()
         log_queue.cancel_join_thread()

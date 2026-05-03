@@ -10,7 +10,9 @@ import time
 from pathlib import Path
 from typing import Any
 
-from core.logger import setup_main_logging, stop_main_logging
+import pytest
+
+from core.logger import LogManager
 
 
 def _lock_grabber_worker(
@@ -41,7 +43,7 @@ def _lock_grabber_worker(
         logger.info(f"[{worker_id}] Лок захвачен!")
 
         # Симулируем работу браузера (парсинг одной страницы)
-        time.sleep(0.5)
+        time.sleep(0.1)
 
     finally:
         released_at = time.monotonic()
@@ -57,6 +59,7 @@ def _lock_grabber_worker(
     )
 
 
+@pytest.mark.stress
 def test_browser_lock_prevents_concurrent_access(tmp_path: Path):
     """
     СЦЕНАРИЙ: 5 процессов одновременно пытаются захватить browser_lock.
@@ -66,7 +69,8 @@ def test_browser_lock_prevents_concurrent_access(tmp_path: Path):
     - Суммарное время >= 5 * 0.5s = 2.5s (доказывает строгую очередь, а не параллельность).
     """
     logs_dir = tmp_path / "logs"
-    log_queue = setup_main_logging(logs_dir=logs_dir, debug=False)
+    log_manager = LogManager()
+    log_queue = log_manager.setup(logs_dir=logs_dir, debug=False)
 
     ctx = multiprocessing.get_context("spawn")
     browser_lock = ctx.Lock()
@@ -97,7 +101,7 @@ def test_browser_lock_prevents_concurrent_access(tmp_path: Path):
             results.append(results_queue.get_nowait())
 
     finally:
-        stop_main_logging()
+        log_manager.stop()
         log_queue.close()
         log_queue.cancel_join_thread()
 
@@ -123,7 +127,7 @@ def test_browser_lock_prevents_concurrent_access(tmp_path: Path):
 
     # ПРОВЕРКА 3: Суммарное время соответствует строгой очереди
     total_time = results[-1]["released_at"] - results[0]["acquired_at"]
-    expected_min_time = num_workers * 0.5  # 5 воркеров * 0.5 сек каждый
+    expected_min_time = num_workers * 0.1  # 5 воркеров * 0.1 сек каждый
     assert total_time >= expected_min_time * 0.8, (
         f"Суммарное время {total_time:.2f}s подозрительно мало. "
         f"Ожидали минимум {expected_min_time * 0.8:.2f}s. "

@@ -13,18 +13,20 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+import engine.browser.detection
+from engine.browser.detection import _CAPTCHA_DETECT_JS, is_captcha_page
 
-# 1. Создаем настоящую (но фейковую) ошибку для тестов
+
 class FakePlaywrightError(Exception):
     pass
 
 
-# 2. Подменяем замоканный класс в модуле detection ДО того, как начнут работать тесты
-import engine.browser.detection
-
-engine.browser.detection.PlaywrightError = FakePlaywrightError
-
-from engine.browser.detection import _CAPTCHA_DETECT_JS, is_captcha_page
+@pytest.fixture(autouse=True)
+def _patch_playwright_error():
+    original = engine.browser.detection.PlaywrightError
+    engine.browser.detection.PlaywrightError = FakePlaywrightError
+    yield
+    engine.browser.detection.PlaywrightError = original
 
 # ---------------------------------------------------------------------------
 # Fixtures

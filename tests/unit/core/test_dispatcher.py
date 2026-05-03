@@ -82,7 +82,7 @@ class TestDispatcherStartTasks:
     def test_start_tasks_empty_specs(self, dispatcher, caplog):
         """Если список спецификаций пуст, возвращает None и не вызывает процессы."""
         with caplog.at_level(logging.WARNING):
-            result = dispatcher.start_tasks(dummy_worker, ["   ", ""], {})
+            result = dispatcher.start_tasks(dummy_worker, ["   ", ""], {}, settings=MagicMock(), paths=MagicMock())
 
         assert result is None
         assert "Нет спецификаций" in caplog.text
@@ -96,7 +96,7 @@ class TestDispatcherStartTasks:
         dispatcher._current_session_id = "old_session"
 
         with caplog.at_level(logging.WARNING):
-            result = dispatcher.start_tasks(dummy_worker, ["new_spec"], {})
+            result = dispatcher.start_tasks(dummy_worker, ["new_spec"], {}, settings=MagicMock(), paths=MagicMock())
 
         assert result == "old_session"
         assert "предыдущие еще работают" in caplog.text
@@ -107,7 +107,7 @@ class TestDispatcherStartTasks:
         mock_proc.pid = 999
         mock_ctx.Process.return_value = mock_proc
 
-        result = dispatcher.start_tasks(dummy_worker, ["reddit", "telegram"], {"fast": True})
+        result = dispatcher.start_tasks(dummy_worker, ["reddit", "telegram"], {"fast": True}, settings=MagicMock(), paths=MagicMock())
 
         assert result == "session_mock_123"
         mock_session_manager.create_session.assert_called_once()
@@ -137,7 +137,7 @@ class TestDispatcherStartTasks:
         mock_ctx.Process.side_effect = OSError("Too many open files")
 
         with caplog.at_level(logging.ERROR):
-            result = dispatcher.start_tasks(dummy_worker, ["bad_spec"], {})
+            result = dispatcher.start_tasks(dummy_worker, ["bad_spec"], {}, settings=MagicMock(), paths=MagicMock())
 
         assert result == "session_mock_123"  # Сессия создалась
         assert len(dispatcher._active_processes) == 0  # Но процесс не добавлен

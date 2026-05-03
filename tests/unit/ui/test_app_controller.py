@@ -189,6 +189,34 @@ class TestAppControllerPublicAPI:
         assert hasattr(ctrl, "theme")
         assert hasattr(ctrl, "monitor")
 
+    def test_is_running_delegates_to_dispatcher(self, ctrl: AppController) -> None:
+        ctrl.dispatcher.is_running = MagicMock(return_value=True)  # type: ignore[method-assign]
+        assert ctrl.is_running() is True
+        ctrl.dispatcher.is_running.assert_called_once()
+
+    def test_stop_parsing_calls_stop_all(self, ctrl: AppController) -> None:
+        ctrl.stop_parsing()
+        ctrl.dispatcher.stop_all.assert_called_once()
+
+    def test_cleanup_stops_everything(self, ctrl: AppController) -> None:
+        ctrl.cleanup()
+        ctrl.dispatcher.stop_all.assert_called()
+        ctrl.log_manager.stop.assert_called_once()
+
+
+class TestResolveFont:
+    def test_returns_fallback_url_for_missing_font(self) -> None:
+        from ui.app import _resolve_font
+
+        result = _resolve_font("assets/fonts/Inter-Regular.ttf")
+        assert isinstance(result, str)
+
+    def test_returns_path_for_unknown_font(self) -> None:
+        from ui.app import _resolve_font
+
+        result = _resolve_font("assets/fonts/NonExistent.ttf")
+        assert result == "assets/fonts/NonExistent.ttf"
+
 
 class TestMainFunction:
     def test_main_is_callable(self) -> None:
