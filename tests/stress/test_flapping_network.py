@@ -75,7 +75,7 @@ async def test_flapping_5xx_errors(
 
     try:
         async with LightExecutor() as light:
-            total, stats = await light.execute(plan, save_cb=lambda r: records.extend(r))
+            total, _stats = await light.execute(plan, save_cb=lambda r: records.extend(r))
 
         assert total >= 0
 
@@ -139,10 +139,10 @@ async def test_mixed_errors_never_crash(
 
     try:
         async with LightExecutor() as light:
-            total, stats = await light.execute(plan, save_cb=lambda r: None)
+            total, _stats = await light.execute(plan, save_cb=lambda r: None)
 
         assert total >= 0
-        assert stats["pages_crawled"] >= 0
+        assert _stats["pages_crawled"] >= 0
 
     except (NetworkError, CaptchaBlockError):
         pass

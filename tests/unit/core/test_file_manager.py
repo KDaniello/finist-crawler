@@ -18,7 +18,6 @@ import multiprocessing
 from pathlib import Path
 from unittest.mock import patch
 
-import openpyxl
 import pytest
 
 from core.file_manager import DataWriter, SessionManager
@@ -174,7 +173,6 @@ class TestDataWriter:
     def test_export_excel_success(self, mock_wb_cls, writer):
         """Экспорт в Excel корректно сериализует словари и списки в строки."""
         mock_ws = mock_wb_cls.return_value.active
-        cells: dict[tuple[int, int], object] = {}
         mock_ws.cell.side_effect = lambda row, column, value=None: type(
             "Cell", (), {"value": value, "font": None, "fill": None, "alignment": None}
         )()

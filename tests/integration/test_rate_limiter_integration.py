@@ -58,7 +58,7 @@ async def test_executor_respects_429_and_retries(
     records = []
 
     async with LightExecutor() as light:
-        total, stats = await light.execute(plan, save_cb=lambda r: records.extend(r))
+        total, _stats = await light.execute(plan, save_cb=lambda r: records.extend(r))
 
     assert request_count == 2
     assert total == 1

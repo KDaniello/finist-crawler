@@ -56,7 +56,7 @@ def browser(profiles_dir):
 @pytest.fixture
 def mock_camoufox():
     """Мокает AsyncCamoufox.__aenter__ и __aexit__."""
-    with patch("engine.browser.browser_setup.AsyncCamoufox") as MockCM:
+    with patch("engine.browser.browser_setup.AsyncCamoufox") as mock_cm:
         instance = AsyncMock()
         context = MagicMock()
         context.pages = []
@@ -65,9 +65,9 @@ def mock_camoufox():
 
         # Симулируем структуру, когда __aenter__ возвращает браузер с contexts
         instance.__aenter__.return_value.contexts = [context]
-        MockCM.return_value = instance
+        mock_cm.return_value = instance
 
-        yield MockCM, instance, context
+        yield mock_cm, instance, context
 
 
 # ---------------------------------------------------------------------------
@@ -78,10 +78,10 @@ def mock_camoufox():
 class TestBrowserLifecycle:
     @pytest.mark.asyncio
     async def test_start_success_new_page(self, browser, mock_camoufox):
-        MockCM, cm_instance, context = mock_camoufox
-        context.pages = []  # Нет открытых вкладок
+        mock_cm, cm_instance, context = mock_camoufox
+        context.pages = []
 
-        page = await browser.start()
+        await browser.start()
 
         assert browser._context is context
         assert browser._page is context.new_page.return_value
@@ -89,7 +89,7 @@ class TestBrowserLifecycle:
         assert browser.uptime >= 0.0
 
         # Проверяем, что LEAN_PREFS и прокси передались
-        kwargs = MockCM.call_args.kwargs
+        kwargs = mock_cm.call_args.kwargs
         assert kwargs["proxy"] == {"server": "http://proxy"}
         assert kwargs["firefox_user_prefs"]["permissions.default.image"] == 2
 
@@ -98,11 +98,11 @@ class TestBrowserLifecycle:
 
     @pytest.mark.asyncio
     async def test_start_success_reused_page(self, browser, mock_camoufox):
-        MockCM, cm_instance, context = mock_camoufox
+        mock_cm, cm_instance, context = mock_camoufox
         existing_page = MagicMock()
         context.pages = [existing_page]  # Уже есть вкладка
 
-        page = await browser.start()
+        await browser.start()
 
         assert browser._page is existing_page
         context.new_page.assert_not_called()
@@ -110,7 +110,7 @@ class TestBrowserLifecycle:
     @pytest.mark.asyncio
     async def test_start_returns_context_directly(self, browser, mock_camoufox):
         """Если Camoufox возвращает сразу Context (без списка contexts)."""
-        MockCM, cm_instance, context = mock_camoufox
+        mock_cm, cm_instance, context = mock_camoufox
 
         # Удаляем атрибут 'contexts', чтобы сработала ветка `else` (строки 154-155)
         del context.contexts
@@ -121,7 +121,7 @@ class TestBrowserLifecycle:
 
     @pytest.mark.asyncio
     async def test_start_fails_no_context(self, browser, mock_camoufox):
-        MockCM, cm_instance, context = mock_camoufox
+        mock_cm, cm_instance, context = mock_camoufox
         cm_instance.__aenter__.return_value = None  # Не удалось создать контекст
 
         with pytest.raises(RuntimeError):
@@ -129,7 +129,7 @@ class TestBrowserLifecycle:
 
     @pytest.mark.asyncio
     async def test_stop_success(self, browser, mock_camoufox):
-        MockCM, cm_instance, context = mock_camoufox
+        mock_cm, cm_instance, context = mock_camoufox
         await browser.start()
 
         page_mock = browser._page
@@ -148,7 +148,7 @@ class TestBrowserLifecycle:
     @pytest.mark.asyncio
     async def test_stop_ignores_page_close_error(self, browser, mock_camoufox):
         """Проверяет пропуск ошибки при закрытии страницы (строка 186)."""
-        MockCM, cm_instance, context = mock_camoufox
+        mock_cm, cm_instance, context = mock_camoufox
         await browser.start()
 
         page_mock = browser._page
@@ -160,7 +160,7 @@ class TestBrowserLifecycle:
 
     @pytest.mark.asyncio
     async def test_stop_ignores_camoufox_exit_error(self, browser, mock_camoufox, caplog):
-        MockCM, cm_instance, context = mock_camoufox
+        mock_cm, cm_instance, context = mock_camoufox
         await browser.start()
 
         cm_instance.__aexit__.side_effect = Exception("Camoufox Crash")
@@ -170,12 +170,12 @@ class TestBrowserLifecycle:
 
     @pytest.mark.asyncio
     async def test_restart(self, browser, mock_camoufox):
-        with patch.object(browser, "stop", new_callable=AsyncMock) as mock_stop:
-            with patch.object(browser, "start", new_callable=AsyncMock) as mock_start:
-                await browser.restart()
+        with patch.object(browser, "stop", new_callable=AsyncMock) as mock_stop, \
+             patch.object(browser, "start", new_callable=AsyncMock) as mock_start:
+            await browser.restart()
 
-                mock_stop.assert_called_once()
-                mock_start.assert_called_once()
+            mock_stop.assert_called_once()
+            mock_start.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +186,7 @@ class TestBrowserLifecycle:
 class TestBrowserMisc:
     @pytest.mark.asyncio
     async def test_context_manager(self, browser, mock_camoufox):
-        MockCM, cm_instance, context = mock_camoufox
+        mock_cm, cm_instance, context = mock_camoufox
 
         async with browser as b:
             assert b is browser
@@ -256,7 +256,7 @@ class TestNetworkInterception:
     @pytest.mark.asyncio
     async def test_route_handler(self, browser, mock_camoufox):
         """Проверка блокировки медиа и трекеров."""
-        MockCM, cm_instance, context = mock_camoufox
+        mock_cm, cm_instance, context = mock_camoufox
         await browser.start()
 
         route_handler = context.route.call_args[0][1]
@@ -291,7 +291,7 @@ class TestNetworkInterception:
     @pytest.mark.asyncio
     async def test_route_handler_disabled_blocks(self, profiles_dir, mock_camoufox):
         """Проверка пропуска ресурсов, если флаги блокировки = False."""
-        MockCM, cm_instance, context = mock_camoufox
+        mock_cm, cm_instance, context = mock_camoufox
 
         # Выключаем блокировки
         browser = ImmortalBrowser(

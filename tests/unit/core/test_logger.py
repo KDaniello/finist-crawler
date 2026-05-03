@@ -1,5 +1,5 @@
 # mypy: disable-error-code=no-untyped-def
-# ruff: noqa: RUF003
+# ruff: noqa: RUF002
 
 """
 Тесты для core/logger.py
@@ -22,7 +22,6 @@ from unittest.mock import patch
 import pytest
 import requests  # type: ignore[import-untyped]
 
-import core.logger
 from core.logger import (
     AsyncDiscordHandler,
     LogManager,

@@ -64,12 +64,12 @@ def mock_save_cb():
 @pytest.fixture
 def mock_browser():
     """Мокает ImmortalBrowser."""
-    with patch("engine.executors.stealth.ImmortalBrowser") as MockBrowserCls:
+    with patch("engine.executors.stealth.ImmortalBrowser") as mock_browser_cls:
         mock_b_instance = AsyncMock()
         mock_b_instance.page = AsyncMock()
         mock_b_instance.page.content.return_value = "<html>test</html>"
 
-        MockBrowserCls.return_value.__aenter__.return_value = mock_b_instance
+        mock_browser_cls.return_value.__aenter__.return_value = mock_b_instance
         yield mock_b_instance
 
 

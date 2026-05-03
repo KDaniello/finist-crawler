@@ -45,17 +45,17 @@ def mock_save_cb():
 
 @pytest.fixture
 def mock_light_cls():
-    with patch("engine.fallback_chain.LightExecutor") as MockCls:
+    with patch("engine.fallback_chain.LightExecutor") as mock_cls:
         instance = AsyncMock()
-        MockCls.return_value.__aenter__.return_value = instance
+        mock_cls.return_value.__aenter__.return_value = instance
         yield instance
 
 
 @pytest.fixture
 def mock_stealth_cls():
-    with patch("engine.fallback_chain.StealthExecutor") as MockCls:
+    with patch("engine.fallback_chain.StealthExecutor") as mock_cls:
         instance = AsyncMock()
-        MockCls.return_value.__aenter__.return_value = instance
+        mock_cls.return_value.__aenter__.return_value = instance
         yield instance
 
 
