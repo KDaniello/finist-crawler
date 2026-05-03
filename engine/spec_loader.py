@@ -11,7 +11,7 @@ from yaml.error import YAMLError
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["SpecError", "load_spec"]
+__all__ = ["SpecError", "discover_sources", "load_spec"]
 
 
 class SpecError(Exception):
@@ -35,7 +35,57 @@ def _load_schema(specs_dir: Path) -> dict[str, Any]:
         data = json.loads(raw)
         if not isinstance(data, dict):
             raise ValueError("Схема должна быть JSON-словарем.")
-        return data
+    return data
+
+
+def discover_sources(specs_dir: Path) -> list[dict[str, Any]]:
+    """
+    Scans specs_dir for YAML files and extracts ui metadata from each.
+
+    Returns a list of dicts with keys:
+        spec_name, title, icon, description, param_label, param_hint,
+        param_key, default_pages, default_detail_pages, tag
+
+    Specs without a ``ui`` section are skipped.
+    """
+    sources: list[dict[str, Any]] = []
+
+    for path in sorted(specs_dir.glob("*.y*ml")):
+        if path.name == "schema.json":
+            continue
+
+        try:
+            data = load_spec(path.stem, specs_dir)
+        except SpecError:
+            logger.warning("Skipping invalid spec: %s", path.name)
+            continue
+
+        ui = data.get("ui")
+        if not isinstance(ui, dict):
+            continue
+
+        entry: dict[str, Any] = {"spec_name": path.name}
+        for key in (
+            "title",
+            "icon",
+            "description",
+            "param_label",
+            "param_hint",
+            "param_key",
+            "default_pages",
+            "default_detail_pages",
+            "tag",
+        ):
+            if key in ui:
+                entry[key] = ui[key]
+
+        if "title" not in entry:
+            continue
+
+        sources.append(entry)
+
+    sources.sort(key=lambda s: s.get("title", ""))
+    return sources
     except Exception as e:
         logger.error(f"Ошибка чтения schema.json: {e}")
         return {}
