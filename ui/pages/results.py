@@ -381,7 +381,7 @@ class ResultsPage:
                 all_keys: list[str] = []
                 seen: set[str] = set()
                 for rec in records:
-                    for k in rec.keys():
+                    for k in rec:
                         if k not in seen and k not in ("metadata", "external_id"):
                             all_keys.append(k)
                             seen.add(k)
