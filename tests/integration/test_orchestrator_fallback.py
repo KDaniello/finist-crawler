@@ -47,8 +47,10 @@ def plan_factory():
     def _make_plan(url: str, render_strategy: str = "auto") -> CrawlerPlan:
         return CrawlerPlan(
             start_urls=[url],
+            start_phase="list",
             item_selector=".item",
             extraction_mode="html",
+            request_headers={},
             fields={
                 "text": FieldRule(selector=".text"),
                 "author": FieldRule(selector=".author"),

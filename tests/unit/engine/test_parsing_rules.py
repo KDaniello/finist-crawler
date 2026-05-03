@@ -222,6 +222,7 @@ class TestJSONExtractor:
             start_phase="list",
             item_selector="items",
             next_page_selector="meta.next_cursor",
+            pagination_mode="cursor",
             request_headers={},
             fields={
                 "id": FieldRule("id"),

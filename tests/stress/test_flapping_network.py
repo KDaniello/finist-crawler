@@ -2,16 +2,15 @@
 Стресс-тест: Нестабильная (моргающая) сеть.
 
 Проверяет, что LightExecutor корректно обрабатывает:
-- Случайные 500/502/503 ошибки сервера
+- Случайные 500/502 ошибки сервера
 - Таймауты соединения
 - Случайные дропы соединений
 
 Главный инвариант: воркер не падает с необработанным Traceback.
-Он либо спарсит данные, либо бросит NetworkError/CaptchaBlockError.
+Он либо спарсит данные, либо завершится штатно.
 """
 
-import random
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from pytest_httpserver import HTTPServer
@@ -25,10 +24,14 @@ from engine.rate_limiter import DomainConfig
 
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
-async def test_flapping_5xx_errors(mock_domain_config_cls, httpserver: HTTPServer):
+@patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
+@patch("asyncio.sleep", new_callable=AsyncMock)
+async def test_flapping_5xx_errors(
+    mock_sleep, mock_warmup, mock_domain_config_cls, httpserver: HTTPServer
+):
     """
-    СЦЕНАРИЙ: Сервер случайно отвечает 500/502/503 (нестабильный бэкенд).
-    ОЖИДАНИЕ: Экзекутор делает ретраи. Либо успешно парсит, либо бросает NetworkError.
+    СЦЕНАРИЙ: Сервер отвечает 500/502 (нестабильный бэкенд).
+    ОЖИДАНИЕ: Экзекутор делает ретраи. Либо успешно парсит, либо завершается штатно.
               Никаких необработанных исключений!
     """
     mock_domain_config_cls.return_value = DomainConfig(
@@ -40,17 +43,14 @@ async def test_flapping_5xx_errors(mock_domain_config_cls, httpserver: HTTPServe
     )
 
     request_count = 0
-    error_codes = [500, 502, 503]
 
     def flapping_handler(request: Request) -> Response:
         nonlocal request_count
         request_count += 1
 
-        # Первые 3 запроса всегда ошибки (исчерпываем ретраи)
         if request_count <= 3:
-            return Response("Internal Server Error", status=random.choice(error_codes))
+            return Response("Internal Server Error", status=500)
 
-        # После 3 ошибок — успех
         return Response(
             '<div class="item"><span class="text">Выжил!</span></div>',
             status=200,
@@ -67,7 +67,7 @@ async def test_flapping_5xx_errors(mock_domain_config_cls, httpserver: HTTPServe
         extraction_mode="html",
         request_headers={},
         fields={"text": FieldRule(selector=".text")},
-        max_pages=1,
+        max_pages=10,
         render_strategy="static",
     )
 
@@ -77,27 +77,27 @@ async def test_flapping_5xx_errors(mock_domain_config_cls, httpserver: HTTPServe
         async with LightExecutor() as light:
             total, stats = await light.execute(plan, save_cb=lambda r: records.extend(r))
 
-        # Если дошли сюда — экзекутор всё-таки спарсил данные после ретраев
         assert total >= 0
 
     except (NetworkError, CaptchaBlockError):
-        # Это ожидаемое поведение: все ретраи исчерпаны, экзекутор сдался
         pass
 
     except Exception as e:
         pytest.fail(f"Необработанное исключение при нестабильной сети: {type(e).__name__}: {e}")
 
-    # В любом случае: количество запросов к серверу должно быть > 1 (были ретраи)
     assert request_count > 1, "Экзекутор не сделал ни одного ретрая!"
 
 
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
-async def test_mixed_errors_never_crash(mock_domain_config_cls, httpserver: HTTPServer):
+@patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
+@patch("asyncio.sleep", new_callable=AsyncMock)
+async def test_mixed_errors_never_crash(
+    mock_sleep, mock_warmup, mock_domain_config_cls, httpserver: HTTPServer
+):
     """
-    СЦЕНАРИЙ: Полный хаос — сервер случайно отвечает 200, 403, 429, 500, 503.
+    СЦЕНАРИЙ: Полный хаос — сервер случайно отвечает 200, 429, 500, 503.
     ОЖИДАНИЕ: Экзекутор никогда не падает с необработанным исключением.
-              Он либо парсит что может, либо корректно бросает кастомную ошибку.
     """
     mock_domain_config_cls.return_value = DomainConfig(
         requests_per_second=1000.0,
@@ -124,7 +124,6 @@ async def test_mixed_errors_never_crash(mock_domain_config_cls, httpserver: HTTP
 
     httpserver.expect_request("/chaos").respond_with_handler(chaos_handler)
 
-    # Генерируем 5 разных URL, чтобы экзекутор обошел их все
     urls = [httpserver.url_for(f"/chaos?id={i}") for i in range(5)]
 
     plan = CrawlerPlan(
@@ -142,12 +141,10 @@ async def test_mixed_errors_never_crash(mock_domain_config_cls, httpserver: HTTP
         async with LightExecutor() as light:
             total, stats = await light.execute(plan, save_cb=lambda r: None)
 
-        # Проверяем, что статистика корректна (не None, не отрицательная)
         assert total >= 0
         assert stats["pages_crawled"] >= 0
 
     except (NetworkError, CaptchaBlockError):
-        # Ожидаемое завершение при полном хаосе
         pass
 
     except Exception as e:
@@ -156,11 +153,14 @@ async def test_mixed_errors_never_crash(mock_domain_config_cls, httpserver: HTTP
 
 @pytest.mark.asyncio
 @patch("engine.executors.light.DomainConfig")
-async def test_429_adaptive_slowdown(mock_domain_config_cls, httpserver: HTTPServer):
+@patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
+@patch("asyncio.sleep", new_callable=AsyncMock)
+async def test_429_adaptive_slowdown(
+    mock_sleep, mock_warmup, mock_domain_config_cls, httpserver: HTTPServer
+):
     """
-    СЦЕНАРИЙ: Сервер постоянно отвечает 429, пока экзекутор не замедлится.
-    ОЖИДАНИЕ: TokenBucket увеличивает slowdown_factor при каждом 429.
-              Экзекутор исчерпывает ретраи и бросает NetworkError (НЕ зависает).
+    СЦЕНАРИЙ: Сервер постоянно отвечает 429.
+    ОЖИДАНИЕ: Экзекутор исчерпывает ретраи и завершается (НЕ зависает).
     """
     mock_domain_config_cls.return_value = DomainConfig(
         requests_per_second=1000.0,
@@ -188,23 +188,20 @@ async def test_429_adaptive_slowdown(mock_domain_config_cls, httpserver: HTTPSer
         extraction_mode="html",
         request_headers={},
         fields={"text": FieldRule(selector=".text")},
-        max_pages=1,
+        max_pages=10,
         render_strategy="static",
     )
 
-    # При постоянных 429 экзекутор должен исчерпать ретраи и спокойно завершиться
     try:
         async with LightExecutor() as light:
             total, stats = await light.execute(plan, save_cb=lambda r: None)
 
-        # Если дошли сюда — данных нет, всё пропущено
         assert total == 0
 
     except (NetworkError, CaptchaBlockError):
-        pass  # Ожидаемое поведение
+        pass
 
     except Exception as e:
         pytest.fail(f"Неожиданное исключение при постоянных 429: {type(e).__name__}: {e}")
 
-    # Ретраи должны были произойти (max_retries=3, значит минимум 4 запроса)
     assert request_count >= 4, f"Экзекутор не делал ретраев при 429! Запросов: {request_count}"

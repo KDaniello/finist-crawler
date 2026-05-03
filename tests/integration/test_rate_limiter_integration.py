@@ -1,9 +1,9 @@
 """
 Интеграционный тест подсистемы троттлинга и ретраев.
-��вязка: LightExecutor + TokenBucket + HTTP 429.
+Связка: LightExecutor + TokenBucket + HTTP 429.
 """
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from pytest_httpserver import HTTPServer
@@ -15,15 +15,16 @@ from engine.rate_limiter import DomainConfig
 
 
 @pytest.mark.asyncio
-# ВАЖНО: Патчим конфиг RateLimiter'а, чтобы сделать паузы миллисекундными для теста,
-# при этом сохраняя реальную работу Event Loop'а и сети.
 @patch("engine.executors.light.DomainConfig")
-async def test_executor_respects_429_and_retries(mock_domain_config_cls, httpserver: HTTPServer):
+@patch("engine.executors.light.LightExecutor._warmup", new_callable=AsyncMock)
+@patch("asyncio.sleep", new_callable=AsyncMock)
+async def test_executor_respects_429_and_retries(
+    mock_sleep, mock_warmup, mock_domain_config_cls, httpserver: HTTPServer
+):
     """
     СЦЕНАРИЙ: Локальный сервер возвращает 429 на первый запрос, и 200 на второй.
-    ОЖИДАНИЕ: LightExecutor поймает 429, увеличит таймаут, сделает ретрай.
+    ОЖИДАНИЕ: LightExecutor поймает 429, сделает ретрай.
     """
-    # Устанавливаем "молниеносные" лимиты для теста
     mock_domain_config_cls.return_value = DomainConfig(
         requests_per_second=100.0,
         burst_size=1,
@@ -59,7 +60,6 @@ async def test_executor_respects_429_and_retries(mock_domain_config_cls, httpser
     async with LightExecutor() as light:
         total, stats = await light.execute(plan, save_cb=lambda r: records.extend(r))
 
-    # Сервер должен был получить ровно 2 запроса (оригинал -> 429, ретрай -> 200)
     assert request_count == 2
     assert total == 1
     assert records[0]["text"] == "Success"
