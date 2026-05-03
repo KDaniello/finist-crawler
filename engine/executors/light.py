@@ -26,8 +26,11 @@ class LightExecutor:
     def name(self) -> str:
         return "LightExecutor (curl_cffi)"
 
-    def __init__(self, impersonate: str | None = "chrome120") -> None:
+    def __init__(
+        self, impersonate: str | None = "chrome120", request_timeout: float = 30.0
+    ) -> None:
         self._preferred_impersonate = impersonate
+        self._request_timeout = request_timeout
         self._client: AsyncSession | None = None
         self._max_retries = 4
 
@@ -54,7 +57,7 @@ class LightExecutor:
         }
 
         kwargs = {
-            "timeout": 30.0,
+            "timeout": self._request_timeout,
             "allow_redirects": True,
             "headers": base_headers,
         }
