@@ -174,7 +174,7 @@ class TestHTMLExtractor:
         </html>
         """
         extractor = HTMLExtractor()
-        records, _next_url, _ = extractor.extract(html, plan, "http://test.com", "list")
+        records, next_url, _ = extractor.extract(html, plan, "http://test.com", "list")
 
         assert len(records) == 2
 
@@ -334,7 +334,7 @@ class TestParsePage:
             request_headers={},
             fields={},
         )
-        records, _next_url, _ = parse_page("<html>", plan, "url")
+        records, next_url, _ = parse_page("<html>", plan, "url")
 
         assert records == []
         assert next_url is None

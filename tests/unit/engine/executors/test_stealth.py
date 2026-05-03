@@ -16,14 +16,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
-class FakePlaywrightError(Exception):
-    pass
-
-
 import engine.executors.stealth
 from engine.executors.stealth import StealthExecutor
 from engine.parsing_rules import CrawlerPlan
+
+
+class FakePlaywrightError(Exception):
+    pass
 
 
 @pytest.fixture(autouse=True)
@@ -141,7 +140,7 @@ class TestStealthExecutorExecute:
     ):
         mock_browser.page.goto.side_effect = FakePlaywrightError("Browser crashed")
 
-        total, stats = await executor.execute(dummy_plan, mock_save_cb)
+        total, _stats = await executor.execute(dummy_plan, mock_save_cb)
 
         assert total == 0
 
@@ -218,6 +217,6 @@ class TestStealthExecutorExecute:
     ):
         mock_browser.page = None
 
-        total, stats = await executor.execute(dummy_plan, mock_save_cb)
+        total, _stats = await executor.execute(dummy_plan, mock_save_cb)
 
         assert total == 0

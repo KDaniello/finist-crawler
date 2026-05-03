@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 
 import psutil
+import pytest
 
 from core.file_manager import DataWriter
 

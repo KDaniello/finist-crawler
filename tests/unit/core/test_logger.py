@@ -1,5 +1,4 @@
 # mypy: disable-error-code=no-untyped-def
-# ruff: noqa: RUF002
 
 """
 Тесты для core/logger.py

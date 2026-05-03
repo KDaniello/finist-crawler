@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import psutil
+import pytest
 
 from core.dispatcher import Dispatcher, SessionManagerProtocol
 from core.logger import LogManager

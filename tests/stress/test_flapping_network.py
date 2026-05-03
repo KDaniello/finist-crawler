@@ -197,7 +197,7 @@ async def test_429_adaptive_slowdown(
 
     try:
         async with LightExecutor() as light:
-            total, stats = await light.execute(plan, save_cb=lambda r: None)
+            total, _stats = await light.execute(plan, save_cb=lambda r: None)
 
         assert total == 0
 

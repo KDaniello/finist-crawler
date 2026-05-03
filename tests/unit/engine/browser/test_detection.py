@@ -13,13 +13,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+import engine.browser.detection
+from engine.browser.detection import _CAPTCHA_DETECT_JS, is_captcha_page
+
 
 class FakePlaywrightError(Exception):
     pass
-
-
-import engine.browser.detection
-from engine.browser.detection import _CAPTCHA_DETECT_JS, is_captcha_page
 
 
 @pytest.fixture(autouse=True)

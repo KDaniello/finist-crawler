@@ -78,7 +78,7 @@ def mock_camoufox():
 class TestBrowserLifecycle:
     @pytest.mark.asyncio
     async def test_start_success_new_page(self, browser, mock_camoufox):
-        mock_cm, cm_instance, context = mock_camoufox
+        mock_cm, _cm_instance, context = mock_camoufox
         context.pages = []
 
         await browser.start()
@@ -98,7 +98,7 @@ class TestBrowserLifecycle:
 
     @pytest.mark.asyncio
     async def test_start_success_reused_page(self, browser, mock_camoufox):
-        mock_cm, cm_instance, context = mock_camoufox
+        _mock_cm, _cm_instance, context = mock_camoufox
         existing_page = MagicMock()
         context.pages = [existing_page]  # Уже есть вкладка
 
@@ -110,7 +110,7 @@ class TestBrowserLifecycle:
     @pytest.mark.asyncio
     async def test_start_returns_context_directly(self, browser, mock_camoufox):
         """Если Camoufox возвращает сразу Context (без списка contexts)."""
-        mock_cm, cm_instance, context = mock_camoufox
+        _mock_cm, cm_instance, context = mock_camoufox
 
         # Удаляем атрибут 'contexts', чтобы сработала ветка `else` (строки 154-155)
         del context.contexts
@@ -121,7 +121,7 @@ class TestBrowserLifecycle:
 
     @pytest.mark.asyncio
     async def test_start_fails_no_context(self, browser, mock_camoufox):
-        mock_cm, cm_instance, context = mock_camoufox
+        _mock_cm, cm_instance, _context = mock_camoufox
         cm_instance.__aenter__.return_value = None  # Не удалось создать контекст
 
         with pytest.raises(RuntimeError):
@@ -129,7 +129,7 @@ class TestBrowserLifecycle:
 
     @pytest.mark.asyncio
     async def test_stop_success(self, browser, mock_camoufox):
-        mock_cm, cm_instance, context = mock_camoufox
+        _mock_cm, cm_instance, context = mock_camoufox
         await browser.start()
 
         page_mock = browser._page
@@ -148,7 +148,7 @@ class TestBrowserLifecycle:
     @pytest.mark.asyncio
     async def test_stop_ignores_page_close_error(self, browser, mock_camoufox):
         """Проверяет пропуск ошибки при закрытии страницы (строка 186)."""
-        mock_cm, cm_instance, context = mock_camoufox
+        _mock_cm, cm_instance, _context = mock_camoufox
         await browser.start()
 
         page_mock = browser._page
@@ -160,7 +160,7 @@ class TestBrowserLifecycle:
 
     @pytest.mark.asyncio
     async def test_stop_ignores_camoufox_exit_error(self, browser, mock_camoufox, caplog):
-        mock_cm, cm_instance, context = mock_camoufox
+        _mock_cm, cm_instance, _context = mock_camoufox
         await browser.start()
 
         cm_instance.__aexit__.side_effect = Exception("Camoufox Crash")
@@ -186,7 +186,7 @@ class TestBrowserLifecycle:
 class TestBrowserMisc:
     @pytest.mark.asyncio
     async def test_context_manager(self, browser, mock_camoufox):
-        mock_cm, cm_instance, context = mock_camoufox
+        _mock_cm, cm_instance, _context = mock_camoufox
 
         async with browser as b:
             assert b is browser
@@ -256,7 +256,7 @@ class TestNetworkInterception:
     @pytest.mark.asyncio
     async def test_route_handler(self, browser, mock_camoufox):
         """Проверка блокировки медиа и трекеров."""
-        mock_cm, cm_instance, context = mock_camoufox
+        _mock_cm, _cm_instance, context = mock_camoufox
         await browser.start()
 
         route_handler = context.route.call_args[0][1]
@@ -291,9 +291,7 @@ class TestNetworkInterception:
     @pytest.mark.asyncio
     async def test_route_handler_disabled_blocks(self, profiles_dir, mock_camoufox):
         """Проверка пропуска ресурсов, если флаги блокировки = False."""
-        mock_cm, cm_instance, context = mock_camoufox
-
-        # Выключаем блокировки
+        _mock_cm, _cm_instance, context = mock_camoufox
         browser = ImmortalBrowser(
             domain="reddit.com", profiles_dir=profiles_dir, block_media=False, block_trackers=False
         )
