@@ -28,14 +28,6 @@ _WINDOW_DEFAULTS = {
 
 
 def _resolve_font(relative_path: str) -> str:
-    """
-    Возвращает путь к шрифту для Flet.
-
-    Приоритет:
-    1. PyInstaller _MEIPASS (собранный .exe)
-    2. Локальный файл assets/fonts/ (dev-режим со скачанными шрифтами)
-    3. Google Fonts URL (dev-режим без шрифтов, требует интернет)
-    """
     if getattr(sys, "frozen", False):
         base = Path(sys._MEIPASS)  # type: ignore[attr-defined]
     else:
@@ -61,8 +53,7 @@ def _resolve_font(relative_path: str) -> str:
 class AppController:
     """
     Центральный контроллер приложения.
-    Связывает UI (Flet страницы) с бизнес-логикой.
-    Не содержит UI-кода — только управление состоянием.
+    НЕ вызывает log_manager.setup() — это делает main() до создания контроллера.
     """
 
     def __init__(
@@ -71,6 +62,7 @@ class AppController:
         paths: ProjectPaths,
         settings: Settings,
         log_manager: LogManager,
+        log_queue: multiprocessing.Queue,  # уже настроенная очередь из main()
         session_manager: SessionManager,
         dispatcher: Dispatcher,
         monitor: SystemMonitor,
@@ -83,11 +75,10 @@ class AppController:
 
         apply_openpyxl_compat()
 
+        # Получаем уже настроенные объекты — НЕ вызываем setup() повторно
         self.log_manager = log_manager
-        self._log_queue = self.log_manager.setup(
-            logs_dir=self._paths.logs_dir,
-            debug=self._settings.DEBUG,
-        )
+        self._log_queue = log_queue
+
         self.session_manager = session_manager
         self.dispatcher = dispatcher
         self.monitor = monitor
@@ -181,7 +172,6 @@ def _build_nav_bar(
     ctrl: AppController,
     on_theme_toggle: Callable[[], None],
 ) -> ft.Container:
-    """Строит верхнюю навигационную панель."""
     t = ctrl.theme.tokens
 
     nav_items = [
@@ -293,7 +283,6 @@ def main(
     worker_target: Callable[..., None] | None = None,
     sources: list[dict[str, Any]] | None = None,
 ) -> None:
-    """Точка входа Flet приложения."""
     from core import get_paths, get_settings
 
     page.title = "Finist Crawler"
@@ -310,8 +299,13 @@ def main(
 
     paths = get_paths()
     settings = get_settings()
+
+    # ------------------------------------------------------------------ #
+    # Единственный вызов setup() во всём приложении                       #
+    # ------------------------------------------------------------------ #
     log_manager = LogManager()
     log_queue = log_manager.setup(logs_dir=paths.logs_dir, debug=settings.DEBUG)
+
     session_manager = SessionManager(base_dir=paths.data_dir)
     dispatcher = Dispatcher(session_manager=session_manager, log_queue=log_queue)
     sys_monitor = SystemMonitor()
@@ -321,11 +315,13 @@ def main(
         paths=paths,
         settings=settings,
         log_manager=log_manager,
+        log_queue=log_queue,  # передаём уже готовую очередь
         session_manager=session_manager,
         dispatcher=dispatcher,
         monitor=sys_monitor,
         worker_target=worker_target,
     )
+
     page.bgcolor = ctrl.theme.tokens.bg_primary
     page.theme_mode = ft.ThemeMode.DARK if ctrl.theme.is_dark else ft.ThemeMode.LIGHT
 
