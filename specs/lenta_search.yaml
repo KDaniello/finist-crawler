@@ -40,7 +40,7 @@ crawler:
   list:
     # {keyword} подставляется из config_overrides.template_params.keyword
     # Lenta API uses comma-separated modifier: modified,format=yyyy-MM-dd
-    url_template: "https://lenta.ru/search/v2/process?query={keyword}&from=0&size=10&sort=2&title_only=0&domain=1&modified,format=yyyy-MM-dd"
+    url_template: "https://lenta.ru/search/v2/process?query={keyword}&from=0&size=20&sort=2&title_only=0&domain=1&modified,format=yyyy-MM-dd"
     extraction_mode: lenta_search
 
     fields:
@@ -52,7 +52,7 @@ crawler:
     next_page:
       # LentaSearchExtractor строит next_url сам через from= параметр,
       # attr здесь не используется но нужен для schema
-      attr: "10"
+      attr: "20"
 
   # ==========================================================
   # ЭТАП 2: HTML страницы статьи
