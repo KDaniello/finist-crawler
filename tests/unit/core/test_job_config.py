@@ -7,6 +7,7 @@ class TestJobConfigDefaults:
         assert cfg.spec_name == ""
         assert cfg.max_pages == 5
         assert cfg.detail_max_pages == 0
+        assert cfg.max_records is None
         assert cfg.template_params == {}
         assert cfg.direct_urls == []
 
@@ -17,6 +18,7 @@ class TestToDict:
             spec_name="test.yaml",
             max_pages=10,
             detail_max_pages=5,
+            max_records=100,
             template_params={"keyword": "python"},
             direct_urls=["http://example.com"],
         )
@@ -24,6 +26,7 @@ class TestToDict:
         assert result == {
             "max_pages": 10,
             "detail_max_pages": 5,
+            "max_records": 100,
             "template_params": {"keyword": "python"},
             "direct_urls": ["http://example.com"],
         }
@@ -34,6 +37,7 @@ class TestFromDict:
         overrides = {
             "max_pages": 20,
             "detail_max_pages": 3,
+            "max_records": 50,
             "template_params": {"q": "test"},
             "direct_urls": ["http://a.com"],
         }
@@ -41,6 +45,7 @@ class TestFromDict:
         assert cfg.spec_name == "my_spec.yaml"
         assert cfg.max_pages == 20
         assert cfg.detail_max_pages == 3
+        assert cfg.max_records == 50
         assert cfg.template_params == {"q": "test"}
         assert cfg.direct_urls == ["http://a.com"]
 

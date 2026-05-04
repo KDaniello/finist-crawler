@@ -139,6 +139,51 @@ class TestBuildPlan:
         assert plan.fields["link"].attr == "href"
         assert plan.fields["link"].default == "N/A"
 
+    def test_build_plan_max_records_from_spec(self):
+        """max_records читается из limits секции спеки."""
+        spec = {
+            "crawler": {
+                "list": {
+                    "start_urls": ["http://base.com"],
+                    "item_selector": ".item",
+                    "fields": {},
+                },
+                "limits": {"max_pages": 5, "max_records": 100},
+            }
+        }
+        plan = build_plan(spec, {})
+        assert plan.max_records == 100
+
+    def test_build_plan_max_records_from_override(self):
+        """max_records из overrides приоритетнее чем из спеки."""
+        spec = {
+            "crawler": {
+                "list": {
+                    "start_urls": ["http://base.com"],
+                    "item_selector": ".item",
+                    "fields": {},
+                },
+                "limits": {"max_pages": 5, "max_records": 100},
+            }
+        }
+        plan = build_plan(spec, {"max_records": 50})
+        assert plan.max_records == 50
+
+    def test_build_plan_max_records_default_none(self):
+        """max_records по умолчанию None (безлимит)."""
+        spec = {
+            "crawler": {
+                "list": {
+                    "start_urls": ["http://base.com"],
+                    "item_selector": ".item",
+                    "fields": {},
+                },
+                "limits": {"max_pages": 5},
+            }
+        }
+        plan = build_plan(spec, {})
+        assert plan.max_records is None
+
 
 # ---------------------------------------------------------------------------
 # HTMLExtractor Tests

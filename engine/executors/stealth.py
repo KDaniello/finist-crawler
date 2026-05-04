@@ -93,6 +93,10 @@ class StealthExecutor:
                 logger.info(f"[{self.name}] Браузер запущен. Начинаем обход.")
 
                 while (list_queue and list_pages_crawled < plan.max_pages) or detail_queue:
+                    max_records_reached = plan.max_records is not None and total_records >= plan.max_records
+                    if max_records_reached:
+                        break
+
                     if list_queue and list_pages_crawled < plan.max_pages:
                         url, phase, retries = list_queue.popleft()
                         if phase == "list":
@@ -188,8 +192,10 @@ class StealthExecutor:
                         if phase == "list":
                             is_two_stage = bool(plan.detail_fields)
                             if is_two_stage:
-                                for r in records:
-                                    d_url = r.get("detail_url")
+                                max_reached = plan.max_records is not None and total_records >= plan.max_records
+                                if not max_reached:
+                                    for r in records:
+                                        d_url = r.get("detail_url")
                                     if d_url:
                                         if plan.detail_url_template:
                                             d_url = plan.detail_url_template.replace(
@@ -200,8 +206,15 @@ class StealthExecutor:
                                             enqueued.add(d_url)
                             else:
                                 if records:
-                                    save_cb(records)
-                                    total_records += len(records)
+                                    if plan.max_records is not None and total_records + len(records) > plan.max_records:
+                                        trim = plan.max_records - total_records
+                                        trimmed = records[:trim]
+                                        if trimmed:
+                                            save_cb(trimmed)
+                                            total_records += len(trimmed)
+                                    else:
+                                        save_cb(records)
+                                        total_records += len(records)
 
                             list_pages_crawled += 1
                             if next_url and next_url not in visited and next_url not in enqueued:
@@ -210,8 +223,15 @@ class StealthExecutor:
 
                         elif phase == "detail":
                             if records:
-                                save_cb(records)
-                                total_records += len(records)
+                                if plan.max_records is not None and total_records + len(records) > plan.max_records:
+                                    trim = plan.max_records - total_records
+                                    trimmed = records[:trim]
+                                    if trimmed:
+                                        save_cb(trimmed)
+                                        total_records += len(trimmed)
+                                else:
+                                    save_cb(records)
+                                    total_records += len(records)
 
                             base_url = url.split("?")[0]
                             branch_stats[base_url]["current"] = (branch_stats[base_url]["current"] or 0) + len(records)
@@ -219,10 +239,14 @@ class StealthExecutor:
 
                             logger.info(f"TELEMETRY|PROGRESS|{base_url}|{current}|-1")
 
-                            if next_url and next_url not in visited and next_url not in enqueued:
-                                detail_queue.append((next_url, "detail", 0))
-                                enqueued.add(next_url)
-                            elif not next_url:
+                            max_reached = plan.max_records is not None and total_records >= plan.max_records
+                            if not max_reached:
+                                if next_url and next_url not in visited and next_url not in enqueued:
+                                    detail_queue.append((next_url, "detail", 0))
+                                    enqueued.add(next_url)
+                                elif not next_url:
+                                    logger.info(f"TELEMETRY|BRANCH_DONE|{base_url}|{current}")
+                            else:
                                 logger.info(f"TELEMETRY|BRANCH_DONE|{base_url}|{current}")
 
                         visited.add(url)

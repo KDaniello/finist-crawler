@@ -243,3 +243,97 @@ class TestLightExecutorExecute:
         _total_records, stats = await executor.execute(plan, mock_save_cb)
 
         assert stats["pages_crawled"] == 1
+
+    @pytest.mark.asyncio
+    @patch("engine.executors.light.TokenBucket.acquire", new_callable=AsyncMock)
+    @patch("engine.executors.light.parse_page")
+    async def test_execute_max_records_stops_early(
+        self, mock_parse_page, mock_acquire, executor, mock_save_cb
+    ):
+        """max_records должен остановить парсинг досрочно."""
+        plan = CrawlerPlan(
+            start_urls=["http://test.com/page1"],
+            start_phase="list",
+            item_selector=".item",
+            fields={},
+            request_headers={},
+            max_pages=10,
+            max_records=3,
+        )
+
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.text = "HTML"
+        executor._client.get.return_value = resp
+
+        mock_parse_page.side_effect = [
+            ([{"id": 1}, {"id": 2}, {"id": 3}], "http://test.com/page2", {}),
+            ([{"id": 4}, {"id": 5}], "http://test.com/page3", {}),
+        ]
+
+        total, stats = await executor.execute(plan, mock_save_cb)
+
+        assert total == 3
+        assert mock_save_cb.call_count == 1
+
+    @pytest.mark.asyncio
+    @patch("engine.executors.light.TokenBucket.acquire", new_callable=AsyncMock)
+    @patch("engine.executors.light.parse_page")
+    async def test_execute_max_records_trims_last_batch(
+        self, mock_parse_page, mock_acquire, executor, mock_save_cb
+    ):
+        """max_records обрезает последний batch если он превышает лимит."""
+        plan = CrawlerPlan(
+            start_urls=["http://test.com/page1"],
+            start_phase="list",
+            item_selector=".item",
+            fields={},
+            request_headers={},
+            max_pages=10,
+            max_records=2,
+        )
+
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.text = "HTML"
+        executor._client.get.return_value = resp
+
+        mock_parse_page.return_value = ([{"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}], None, {})
+
+        total, stats = await executor.execute(plan, mock_save_cb)
+
+        assert total == 2
+        assert mock_save_cb.call_count == 1
+        saved = mock_save_cb.call_args[0][0]
+        assert len(saved) == 2
+
+    @pytest.mark.asyncio
+    @patch("engine.executors.light.TokenBucket.acquire", new_callable=AsyncMock)
+    @patch("engine.executors.light.parse_page")
+    async def test_execute_max_records_none_unlimited(
+        self, mock_parse_page, mock_acquire, executor, mock_save_cb
+    ):
+        """max_records=None означает безлимитный парсинг."""
+        plan = CrawlerPlan(
+            start_urls=["http://test.com/page1"],
+            start_phase="list",
+            item_selector=".item",
+            fields={},
+            request_headers={},
+            max_pages=2,
+            max_records=None,
+        )
+
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.text = "HTML"
+        executor._client.get.return_value = resp
+
+        mock_parse_page.side_effect = [
+            ([{"id": 1}, {"id": 2}, {"id": 3}], "http://test.com/page2", {}),
+            ([{"id": 4}, {"id": 5}], None, {}),
+        ]
+
+        total, stats = await executor.execute(plan, mock_save_cb)
+
+        assert total == 5

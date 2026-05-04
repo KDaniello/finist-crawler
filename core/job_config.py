@@ -28,6 +28,7 @@ class JobConfig:
     spec_name: str = ""
     max_pages: int = 5
     detail_max_pages: int = 0
+    max_records: int | None = None
     template_params: dict[str, str] = field(default_factory=dict)
     direct_urls: list[str] = field(default_factory=list)
 
@@ -41,6 +42,7 @@ class JobConfig:
         return {
             "max_pages": self.max_pages,
             "detail_max_pages": self.detail_max_pages,
+            "max_records": self.max_records,
             "template_params": self.template_params,
             "direct_urls": self.direct_urls,
         }
@@ -61,6 +63,7 @@ class JobConfig:
             spec_name=spec_name,
             max_pages=overrides.get("max_pages", 5),
             detail_max_pages=overrides.get("detail_max_pages", 0),
+            max_records=overrides.get("max_records"),
             template_params=overrides.get("template_params", {}),
             direct_urls=overrides.get("direct_urls", []),
         )

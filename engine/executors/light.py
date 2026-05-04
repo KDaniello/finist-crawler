@@ -128,6 +128,7 @@ class LightExecutor:
             f"[{self.name}] Старт парсинга {domain} | impersonate={self._client.impersonate} "
             f"| Proxy: {'Да' if proxy_url else 'Нет'} "
             f"| detail_max_pages={detail_limit if detail_limit > 0 else '∞'}"
+            f"| max_records={plan.max_records or '∞'}"
         )
 
         async def fetch_and_process(url: str, phase: str, retries: int) -> None:
@@ -182,18 +183,27 @@ class LightExecutor:
                 if phase == "list":
                     is_two_stage = bool(plan.detail_fields)
                     if is_two_stage:
-                        for r in records:
-                            d_url = r.get("detail_url")
-                            if d_url:
-                                if plan.detail_url_template:
-                                    d_url = plan.detail_url_template.replace("{}", str(d_url))
-                                if d_url not in enqueued:
-                                    detail_queue.append((d_url, "detail", 0))
-                                    enqueued.add(d_url)
+                        max_reached = plan.max_records is not None and total_records >= plan.max_records
+                        if not max_reached:
+                            for r in records:
+                                d_url = r.get("detail_url")
+                                if d_url:
+                                    if plan.detail_url_template:
+                                        d_url = plan.detail_url_template.replace("{}", str(d_url))
+                                    if d_url not in enqueued:
+                                        detail_queue.append((d_url, "detail", 0))
+                                        enqueued.add(d_url)
                     else:
                         if records:
-                            save_cb(records)
-                            total_records += len(records)
+                            if plan.max_records is not None and total_records + len(records) > plan.max_records:
+                                trim = plan.max_records - total_records
+                                trimmed = records[:trim]
+                                if trimmed:
+                                    save_cb(trimmed)
+                                    total_records += len(trimmed)
+                            else:
+                                save_cb(records)
+                                total_records += len(records)
 
                     if next_url and next_url not in visited and next_url not in enqueued:
                         list_queue.append((next_url, "list", 0))
@@ -201,8 +211,19 @@ class LightExecutor:
 
                 elif phase == "detail":
                     if records:
-                        save_cb(records)
-                        total_records += len(records)
+                        if plan.max_records is not None and total_records + len(records) > plan.max_records:
+                            trim = plan.max_records - total_records
+                            trimmed = records[:trim]
+                            if trimmed:
+                                save_cb(trimmed)
+                                total_records += len(trimmed)
+                            logger.info(
+                                f"[{self.name}] max_records={plan.max_records} достигнут, "
+                                f"обрезано {len(records)}→{len(trimmed)}"
+                            )
+                        else:
+                            save_cb(records)
+                            total_records += len(records)
 
                     # Считаем каждую успешно обработанную detail-страницу
                     detail_pages_crawled += 1
@@ -261,11 +282,12 @@ class LightExecutor:
             except Exception as e:
                 logger.error(f"Сбой парсинга {url}: {e}", exc_info=True)
 
-        # Основной цикл с учётом detail_max_pages
+        # Основной цикл с учётом detail_max_pages и max_records
         while True:
+            max_records_reached = plan.max_records is not None and total_records >= plan.max_records
             detail_limit_reached = detail_limit > 0 and detail_pages_crawled >= detail_limit
-            has_list = bool(list_queue) and list_pages_crawled < plan.max_pages
-            has_detail = bool(detail_queue) and not detail_limit_reached
+            has_list = bool(list_queue) and list_pages_crawled < plan.max_pages and not max_records_reached
+            has_detail = bool(detail_queue) and not detail_limit_reached and not max_records_reached
 
             if not has_list and not has_detail:
                 break
@@ -274,10 +296,11 @@ class LightExecutor:
 
             while len(batch_tasks) < plan.concurrency:
                 detail_limit_reached = detail_limit > 0 and detail_pages_crawled >= detail_limit
+                max_records_reached = plan.max_records is not None and total_records >= plan.max_records
 
-                if detail_queue and not detail_limit_reached:
+                if detail_queue and not detail_limit_reached and not max_records_reached:
                     batch_tasks.append(detail_queue.popleft())
-                elif list_queue and list_pages_crawled < plan.max_pages:
+                elif list_queue and list_pages_crawled < plan.max_pages and not max_records_reached:
                     url, phase, retries = list_queue.popleft()
                     if phase == "list":
                         logger.info(f"TELEMETRY|PAGE_START|{current_list_page}")

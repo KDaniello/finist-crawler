@@ -159,6 +159,7 @@ class CrawlerPlan:
     request_timeout_sec: int = 30
     render_wait_ms: int = 3000
     impersonate: str | None = "chrome120"
+    max_records: int | None = None
 
 
 def build_plan(spec: dict[str, Any], config_overrides: dict[str, Any]) -> CrawlerPlan:
@@ -269,6 +270,7 @@ def build_plan(spec: dict[str, Any], config_overrides: dict[str, Any]) -> Crawle
         request_timeout_sec=limits_cfg.get("request_timeout_sec", 30),
         render_wait_ms=limits_cfg.get("render_wait_ms", 3000),
         impersonate=impersonate_val,
+        max_records=config_overrides.get("max_records") or limits_cfg.get("max_records"),
     )
 
 
