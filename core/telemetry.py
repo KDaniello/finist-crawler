@@ -104,4 +104,21 @@ class TelemetryEvent:
             if state == "SOLVED":
                 return cls(event_type=TelemetryEventType.CAPTCHA_SOLVED)
 
+        if cmd == "WORKER_DONE" and len(parts) >= 3:
+            try:
+                return cls(
+                    event_type=TelemetryEventType.WORKER_DONE,
+                    spec_name=parts[2],
+                    current=int(parts[3]) if len(parts) >= 4 else None,
+                )
+            except ValueError:
+                return None
+
+        if cmd == "WORKER_ERROR" and len(parts) >= 3:
+            return cls(
+                event_type=TelemetryEventType.WORKER_ERROR,
+                spec_name=parts[2],
+                error_message="|".join(parts[3:]) if len(parts) >= 4 else None,
+            )
+
         return None
