@@ -65,3 +65,5 @@ crawler:
         selector: "script.json-topic-info"
       author:
         selector: ".topic-authors__name"
+      created_at:
+        selector: "dateCreated"

@@ -394,7 +394,7 @@ class JSONExtractor:
                     if rule.regex:
                         m = re.search(rule.regex, val_str)
                         val_str = m.group(1) if m else str(rule.default)
-                    record[field_name] = sanitize_html(val_str) if field_name == "text" else val_str
+                    record[field_name] = sanitize_html(val_str) if field_name in ("text", "title") else val_str
 
             if record:
                 record["external_id"] = record.get("external_id") or _generate_deterministic_id(
@@ -578,9 +578,20 @@ class LentaSearchExtractor:
                 elif isinstance(author_obj, str):
                     record["author"] = author_obj
 
-                # Дополнительные поля из json-topic-info
-                record["description"] = topic.get("description", "")
-                record["alt_headline"] = topic.get("alternativeHeadline", "")
+                # created_at из dateCreated (ISO 8601)
+                date_created = topic.get("dateCreated")
+                if date_created:
+                    record["created_at"] = str(date_created).strip()
+
+                # description — только если реально заполнено
+                description = topic.get("description")
+                if description:
+                    record["description"] = description.strip()
+
+                # alt_headline — только если реально заполнено
+                alt_headline = topic.get("alternativeHeadline")
+                if alt_headline:
+                    record["alt_headline"] = alt_headline.strip()
 
                 if record.get("text"):
                     logger.debug(
