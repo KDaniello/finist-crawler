@@ -26,11 +26,10 @@ class StealthExecutor:
         return "StealthExecutor (Camoufox)"
 
     def __init__(
-        self, browser_lock: Any, profiles_dir: Path, captcha_wait_ms: int = 3000
+        self, browser_lock: Any, profiles_dir: Path
     ) -> None:
         self._browser_lock = browser_lock
         self._profiles_dir = profiles_dir
-        self._captcha_wait_ms = captcha_wait_ms
         self._max_retries = 2
 
     async def __aenter__(self) -> "StealthExecutor":
@@ -117,7 +116,7 @@ class StealthExecutor:
 
                         resp = await browser.page.goto(
                             url,
-                            wait_until="domcontentloaded",
+                            wait_until="load",
                             timeout=plan.request_timeout_sec * 1000,
                         )
 
@@ -132,8 +131,7 @@ class StealthExecutor:
                                 )
                             continue
 
-                        # ФИКС: Ждем 3 секунды, чтобы скрипт Yandex SmartCaptcha успел отрисовать "Вы робот?"
-                        await browser.page.wait_for_timeout(self._captcha_wait_ms)
+                        await browser.page.wait_for_timeout(plan.render_wait_ms)
                         html = await browser.page.content()
 
                         # Проверяем, вылезла ли капча
