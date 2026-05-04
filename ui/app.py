@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import multiprocessing
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -11,10 +12,10 @@ import flet as ft
 from core._openpyxl_compat import apply_openpyxl_compat
 from core.config import ProjectPaths, Settings
 from core.dispatcher import Dispatcher
-from core.file_manager import SessionManager
+from core.file_manager import DataWriter, SessionManager
 from core.logger import LogManager
 from core.resources import SystemMonitor
-from ui.theme import ThemeController
+from ui.theme import FONT_DISPLAY, FONT_TEXT, ThemeController
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +133,16 @@ class AppController:
     def stop_parsing(self) -> None:
         self.dispatcher.stop_all()
 
+    def export_data(self, source_dir: Path, fmt: str) -> Path | None:
+        session_id = source_dir.parent.name
+        writer = DataWriter(
+            base_dir=self._paths.data_dir,
+            session_id=session_id,
+            source=source_dir.name,
+            lock=multiprocessing.Lock(),
+        )
+        return writer.export(fmt=fmt)
+
     def is_running(self) -> bool:
         return self.dispatcher.is_running()
 
@@ -186,7 +197,7 @@ def _build_nav_bar(
                     size=14,
                     weight=ft.FontWeight.W_500,
                     color=t.text_primary if is_active else t.text_secondary,
-                    font_family="Inter",
+                    font_family=FONT_TEXT,
                 ),
                 padding=ft.padding.symmetric(horizontal=16, vertical=8),
                 border_radius=8,
@@ -219,7 +230,7 @@ def _build_nav_bar(
         "Активен" if is_running else "Ожидание",
         size=12,
         color=t.accent if is_running else t.text_muted,
-        font_family="Inter",
+        font_family=FONT_TEXT,
     )
 
     return ft.Container(
@@ -233,7 +244,7 @@ def _build_nav_bar(
                                 size=16,
                                 weight=ft.FontWeight.BOLD,
                                 color=t.accent,
-                                font_family="Inter",
+                                font_family=FONT_DISPLAY,
                             ),
                             width=32,
                             height=32,
@@ -246,7 +257,7 @@ def _build_nav_bar(
                             size=16,
                             weight=ft.FontWeight.W_600,
                             color=t.text_primary,
-                            font_family="Inter",
+                            font_family=FONT_DISPLAY,
                         ),
                     ],
                     spacing=10,

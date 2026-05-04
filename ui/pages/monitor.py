@@ -3,16 +3,33 @@ from __future__ import annotations
 import datetime
 import logging
 import threading
+import time
 
 import flet as ft
 
 from core.resources import SystemStats
 from core.telemetry import TelemetryEvent, TelemetryEventType
 from ui.app import AppController
+from ui.theme import (
+    FONT_DISPLAY,
+    FONT_MONO,
+    FONT_TEXT,
+    RADIUS_LG,
+    RADIUS_SM,
+    SIZE_BODY,
+    SIZE_CAPTION,
+    SIZE_HEADING,
+    SIZE_LABEL,
+    SIZE_TITLE,
+    SPACE_LG,
+    SPACE_MD,
+    SPACE_SM,
+    SPACE_XL,
+    SPACE_XS,
+)
 
 logger = logging.getLogger(__name__)
 
-# Человекочитаемые названия источников
 _SOURCE_LABELS = {
     "habr": "статей",
     "habr_articles": "статей",
@@ -39,11 +56,19 @@ _SOURCE_ICONS = {
 
 
 def _records_label(source_key: str, count: int) -> str:
-    """Возвращает читаемую подпись: 'собрано 42 отзыва'."""
     for key, label in _SOURCE_LABELS.items():
         if key in source_key.lower():
             return f"{count} {label}"
     return f"{count} записей"
+
+
+def _source_display_name(spec_name: str) -> str:
+    clean = spec_name.replace(".yaml", "")
+    for key in _SOURCE_LABELS:
+        if key in clean.lower():
+            parts = key.split("_")
+            return parts[0].capitalize()
+    return clean
 
 
 class MonitorPage:
@@ -59,308 +84,274 @@ class MonitorPage:
         self._is_monitoring = False
         self._total_records = 0
         self._source_key: str = ""
+        self._start_time: float | None = None
 
         t = self._ctrl.theme.tokens
 
         self._status_text = ft.Text(
             "Ожидание запуска...",
-            size=13,
+            size=SIZE_LABEL,
             color=t.text_secondary,
-            font_family="Inter",
+            font_family=FONT_TEXT,
         )
-        self._records_text = ft.Text(
-            "0",
-            size=36,
-            weight=ft.FontWeight.BOLD,
-            color=t.accent,
-            font_family="Inter",
+        self._subtitle_text = ft.Text(
+            "",
+            size=SIZE_BODY,
+            color=t.text_secondary,
+            font_family=FONT_TEXT,
         )
-        self._records_label = ft.Text(
-            "записей собрано",
-            size=12,
-            color=t.text_muted,
-            font_family="Inter",
-        )
-        self._cpu_bar = ft.ProgressBar(
-            value=0,
-            color=t.accent_info,
-            bgcolor=t.border,
-            expand=True,
-        )
-        self._ram_bar = ft.ProgressBar(
+        self._overall_bar = ft.ProgressBar(
             value=0,
             color=t.accent,
             bgcolor=t.border,
-            expand=True,
+            border_radius=RADIUS_SM,
+            bar_height=8,
         )
-        self._cpu_text = ft.Text(
-            "0%",
-            size=12,
+        self._overall_count = ft.Text(
+            "0 записей",
+            size=SIZE_LABEL,
             color=t.text_secondary,
-            font_family="Inter",
-            width=40,
+            font_family=FONT_TEXT,
+        )
+        self._speed_text = ft.Text(
+            "Скорость: — зап/с",
+            size=SIZE_CAPTION,
+            color=t.text_tertiary,
+            font_family=FONT_TEXT,
         )
         self._ram_text = ft.Text(
-            "0%",
-            size=12,
-            color=t.text_secondary,
-            font_family="Inter",
-            width=40,
+            "RAM: — MB",
+            size=SIZE_CAPTION,
+            color=t.text_tertiary,
+            font_family=FONT_TEXT,
         )
-        self._app_mem_text = ft.Text(
-            "Приложение: 0 MB",
-            size=12,
-            color=t.text_muted,
-            font_family="Inter",
+        self._elapsed_text = ft.Text(
+            "Прошло: 00:00:00",
+            size=SIZE_CAPTION,
+            color=t.text_tertiary,
+            font_family=FONT_TEXT,
         )
-        self._branches_col = ft.Column([], spacing=10)
-        self._completed_col = ft.Column([], spacing=4)
+        self._branches_col = ft.Column([], spacing=SPACE_SM)
+        self._completed_col = ft.Column([], spacing=SPACE_XS)
         self._log_col = ft.Column([], spacing=2, scroll=ft.ScrollMode.AUTO, expand=True)
+        self._completion_col = ft.Column([], spacing=SPACE_MD, visible=False)
+
         self._stop_btn = ft.Container(
-            content=ft.Text(
-                "Остановить",
-                size=13,
-                weight=ft.FontWeight.W_500,
-                color="#FFFFFF",
-                font_family="Inter",
+            content=ft.Row(
+                [
+                    ft.Text("■", size=SIZE_LABEL, color="#FFFFFF"),
+                    ft.Text(
+                        "Стоп",
+                        size=SIZE_LABEL,
+                        color="#FFFFFF",
+                        font_family=FONT_TEXT,
+                        weight=ft.FontWeight.W_500,
+                    ),
+                ],
+                spacing=SPACE_XS,
             ),
             bgcolor=t.accent_danger,
-            border_radius=8,
-            padding=ft.padding.symmetric(horizontal=20, vertical=10),
-            on_click=self._on_stop,  # type: ignore[arg-type]
+            border_radius=RADIUS_SM,
+            padding=ft.padding.symmetric(horizontal=SPACE_MD, vertical=SPACE_SM),
+            on_click=self._on_stop_click,  # type: ignore[arg-type]
             ink=True,
             visible=False,
         )
 
     def _reset_state(self) -> None:
-        """Сбрасывает состояние UI перед новым парсингом."""
         self._total_records = 0
         self._source_key = ""
+        self._start_time = None
         self._branch_bars.clear()
         self._branch_texts.clear()
         self._branch_rows.clear()
         self._branches_col.controls.clear()
         self._completed_col.controls.clear()
         self._log_col.controls.clear()
+        self._completion_col.controls.clear()
+        self._completion_col.visible = False
         t = self._ctrl.theme.tokens
-        self._records_text.value = "0"
-        self._records_label.value = "записей собрано"
+        self._overall_bar.value = 0
+        self._overall_count.value = "0 записей"
         self._status_text.value = "Инициализация..."
         self._status_text.color = t.text_secondary
+        self._speed_text.value = "Скорость: — зап/с"
+        self._elapsed_text.value = "Прошло: 00:00:00"
 
     def build(self) -> ft.Control:
         t = self._ctrl.theme.tokens
 
-        # Карточка статуса — компактная
-        status_card = ft.Container(
+        back_btn = ft.Container(
             content=ft.Row(
                 [
-                    ft.Column(
-                        [
-                            self._records_text,
-                            self._records_label,
-                            ft.Container(height=4),
-                            self._status_text,
-                        ],
-                        spacing=2,
-                        expand=True,
+                    ft.Text("←", size=SIZE_BODY, color=t.accent, font_family=FONT_TEXT),
+                    ft.Text(
+                        "Назад",
+                        size=SIZE_BODY,
+                        color=t.accent,
+                        font_family=FONT_TEXT,
                     ),
-                    self._stop_btn,
                 ],
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=SPACE_XS,
             ),
-            bgcolor=t.bg_secondary,
-            border_radius=16,
-            padding=20,
-            border=ft.border.all(1, t.border),
-            expand=True,
+            on_click=lambda e: self._ctrl.navigate("launcher"),
+            ink=True,
+            padding=ft.padding.symmetric(horizontal=SPACE_SM, vertical=SPACE_XS),
+            border_radius=RADIUS_SM,
         )
 
-        # Карточка ресурсов — компактная
-        resources_card = ft.Container(
+        header = ft.Row(
+            [
+                back_btn,
+                ft.Text(
+                    "Сбор данных",
+                    size=SIZE_HEADING,
+                    weight=ft.FontWeight.W_600,
+                    color=t.text_primary,
+                    font_family=FONT_DISPLAY,
+                    expand=True,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+                self._stop_btn,
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+
+        progress_card = ft.Container(
             content=ft.Column(
                 [
-                    ft.Text(
-                        "Ресурсы",
-                        size=11,
-                        color=t.text_muted,
-                        font_family="Inter",
-                        weight=ft.FontWeight.W_500,
-                    ),
-                    ft.Row(
-                        [
-                            ft.Text(
-                                "CPU", size=11, color=t.text_muted, font_family="Inter", width=32
-                            ),
-                            ft.Container(content=self._cpu_bar, expand=True),
-                            self._cpu_text,
-                        ],
-                        spacing=6,
-                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                    ),
-                    ft.Row(
-                        [
-                            ft.Text(
-                                "RAM", size=11, color=t.text_muted, font_family="Inter", width=32
-                            ),
-                            ft.Container(content=self._ram_bar, expand=True),
-                            self._ram_text,
-                        ],
-                        spacing=6,
-                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                    ),
-                    self._app_mem_text,
+                    self._subtitle_text,
+                    ft.Container(height=SPACE_SM),
+                    self._overall_bar,
+                    ft.Container(height=SPACE_XS),
+                    self._overall_count,
+                    ft.Container(height=SPACE_XS),
+                    self._status_text,
                 ],
-                spacing=6,
+                spacing=SPACE_XS,
             ),
-            bgcolor=t.bg_secondary,
-            border_radius=16,
-            padding=20,
-            border=ft.border.all(1, t.border),
-            width=260,
+            bgcolor=t.bg_elevated,
+            border_radius=RADIUS_LG,
+            padding=SPACE_LG,
+            border=ft.border.all(1, t.border_light),
         )
 
-        # Активные + завершённые в одной строке
-        progress_row = ft.Row(
+        metrics_row = ft.Row(
             [
-                # Активные ветки
-                ft.Container(
-                    content=ft.Column(
+                self._speed_text,
+                ft.Container(width=SPACE_LG),
+                self._ram_text,
+                ft.Container(width=SPACE_LG),
+                self._elapsed_text,
+            ],
+            spacing=0,
+        )
+
+        branches_card = ft.Container(
+            content=ft.Column(
+                [
+                    ft.Row(
                         [
                             ft.Text(
                                 "В процессе",
-                                size=11,
-                                color=t.text_muted,
-                                font_family="Inter",
+                                size=SIZE_CAPTION,
+                                color=t.text_tertiary,
+                                font_family=FONT_TEXT,
                                 weight=ft.FontWeight.W_500,
                             ),
-                            self._branches_col,
-                        ],
-                        spacing=10,
-                    ),
-                    bgcolor=t.bg_secondary,
-                    border_radius=16,
-                    padding=20,
-                    border=ft.border.all(1, t.border),
-                    expand=True,
-                ),
-                # Завершённые
-                ft.Container(
-                    content=ft.Column(
-                        [
+                            ft.Container(expand=True),
                             ft.Text(
                                 "Завершено",
-                                size=11,
-                                color=t.text_muted,
-                                font_family="Inter",
+                                size=SIZE_CAPTION,
+                                color=t.text_tertiary,
+                                font_family=FONT_TEXT,
                                 weight=ft.FontWeight.W_500,
                             ),
-                            self._completed_col,
                         ],
-                        spacing=8,
                     ),
-                    bgcolor=t.bg_secondary,
-                    border_radius=16,
-                    padding=20,
-                    border=ft.border.all(1, t.border),
-                    expand=True,
-                ),
-            ],
-            spacing=16,
-            vertical_alignment=ft.CrossAxisAlignment.START,
+                    ft.Row(
+                        [
+                            ft.Container(
+                                content=self._branches_col,
+                                expand=True,
+                            ),
+                            ft.Container(
+                                content=self._completed_col,
+                                expand=True,
+                            ),
+                        ],
+                        spacing=SPACE_MD,
+                        vertical_alignment=ft.CrossAxisAlignment.START,
+                    ),
+                ],
+                spacing=SPACE_SM,
+            ),
+            bgcolor=t.bg_elevated,
+            border_radius=RADIUS_LG,
+            padding=SPACE_LG,
+            border=ft.border.all(1, t.border_light),
         )
 
-        # Логи — фиксированная высота, не растут
         logs_card = ft.Container(
             content=ft.Column(
                 [
                     ft.Text(
                         "Журнал событий",
-                        size=11,
-                        color=t.text_muted,
-                        font_family="Inter",
+                        size=SIZE_CAPTION,
+                        color=t.text_tertiary,
+                        font_family=FONT_TEXT,
                         weight=ft.FontWeight.W_500,
                     ),
                     ft.Container(
                         content=self._log_col,
                         height=160,
                         bgcolor=t.bg_primary,
-                        border_radius=10,
-                        padding=10,
+                        border_radius=RADIUS_SM,
+                        padding=SPACE_SM,
                         clip_behavior=ft.ClipBehavior.HARD_EDGE,
                     ),
                 ],
-                spacing=8,
+                spacing=SPACE_SM,
             ),
-            bgcolor=t.bg_secondary,
-            border_radius=16,
-            padding=20,
-            border=ft.border.all(1, t.border),
+            bgcolor=t.bg_elevated,
+            border_radius=RADIUS_LG,
+            padding=SPACE_LG,
+            border=ft.border.all(1, t.border_light),
         )
 
         return ft.Container(
             content=ft.Column(
                 [
-                    # Заголовок
-                    ft.Column(
-                        [
-                            ft.Text(
-                                "Мониторинг",
-                                size=22,
-                                weight=ft.FontWeight.BOLD,
-                                color=t.text_primary,
-                                font_family="Inter",
-                            ),
-                            ft.Text(
-                                "Отслеживание активного парсинга",
-                                size=14,
-                                color=t.text_secondary,
-                                font_family="Inter",
-                            ),
-                        ],
-                        spacing=4,
-                    ),
-                    ft.Row(
-                        [status_card, resources_card],
-                        spacing=16,
-                        vertical_alignment=ft.CrossAxisAlignment.START,
-                    ),
-                    progress_row,
+                    header,
+                    progress_card,
+                    metrics_row,
+                    branches_card,
                     logs_card,
+                    self._completion_col,
                 ],
-                spacing=14,
-                # НЕТ scroll — всё на одном экране
+                spacing=SPACE_MD,
+                scroll=ft.ScrollMode.AUTO,
             ),
-            padding=ft.padding.symmetric(horizontal=32, vertical=20),
+            padding=ft.padding.symmetric(horizontal=SPACE_XL, vertical=SPACE_LG),
             expand=True,
             bgcolor=t.bg_primary,
         )
 
     def start_monitoring(self) -> None:
-        """
-        Вызывается при каждом переходе на страницу мониторинга.
-        Сбрасывает старые данные если парсинг уже завершён.
-        """
-
-        # Если новый парсинг — сбрасываем состояние
         if not self._is_monitoring:
             self._reset_state()
 
-            # Определяем source_key из активных specs
             if self._ctrl.active_specs:
                 spec = self._ctrl.active_specs[0].replace(".yaml", "")
                 self._source_key = spec
+                display = _source_display_name(self._ctrl.active_specs[0])
+                self._subtitle_text.value = display
 
+            self._start_time = time.time()
             self._is_monitoring = True
             self._stop_btn.visible = True
 
-            # Обновляем label записей на основе источника
-            self._records_label.value = (
-                _records_label(self._source_key, 0).replace("0 ", "") + " собрано"
-            )
-
-            # Подключаем хендлер логов ОДИН РАЗ
             if self._ctrl._ui_log_handler is None:
                 handler = self._create_log_handler()
                 added = self._ctrl.log_manager.add_handler(handler)
@@ -374,31 +365,107 @@ class MonitorPage:
             ).start()
 
     def _resource_monitor_loop(self) -> None:
-        import time
-
         while self._is_monitoring:
             try:
                 stats = self._ctrl.monitor.get_stats()
                 self._ctrl.page.run_task(self._update_resources_ui, stats)
             except Exception as e:
                 logger.debug("Ошибка мониторинга: %s", e)
-            time.sleep(2.0)
+            time.sleep(1.0)
 
     async def _update_resources_ui(self, stats: SystemStats) -> None:
         t = self._ctrl.theme.tokens
-        self._cpu_bar.value = stats.cpu_percent / 100
-        self._cpu_text.value = f"{stats.cpu_percent:.0f}%"
-        self._ram_bar.value = stats.ram_percent / 100
-        self._ram_text.value = f"{stats.ram_percent:.0f}%"
-        self._app_mem_text.value = f"Приложение: {stats.app_memory_mb:.0f} MB"
+
+        self._ram_text.value = f"RAM: {stats.app_memory_mb:.0f} MB"
+
+        if self._start_time is not None:
+            elapsed = time.time() - self._start_time
+            hours, remainder = divmod(int(elapsed), 3600)
+            minutes, seconds = divmod(remainder, 60)
+            self._elapsed_text.value = f"Прошло: {hours:02d}:{minutes:02d}:{seconds:02d}"
+
+            if elapsed > 0 and self._total_records > 0:
+                speed = self._total_records / elapsed
+                self._speed_text.value = f"Скорость: {speed:.0f} зап/с"
 
         if not self._ctrl.is_running() and self._is_monitoring:
             self._is_monitoring = False
             self._stop_btn.visible = False
-            self._status_text.value = "Парсинг завершён"
-            self._status_text.color = t.accent
+            self._status_text.value = "Сбор завершён"
+            self._status_text.color = t.success
+
+            elapsed_str = ""
+            if self._start_time is not None:
+                elapsed = time.time() - self._start_time
+                if elapsed < 60:
+                    elapsed_str = f" за {elapsed:.0f} сек."
+                else:
+                    mins = int(elapsed // 60)
+                    secs = int(elapsed % 60)
+                    elapsed_str = f" за {mins} мин. {secs} сек."
+
+            rec_label = _records_label(
+                self._source_key, self._total_records
+            )
+            self._show_completion(
+                "✅",
+                f"Сбор завершён. {rec_label}{elapsed_str}",
+                t.success,
+                "Посмотреть результаты →",
+                "results",
+            )
 
         self._ctrl.page.update()
+
+    def _show_completion(
+        self,
+        icon: str,
+        message: str,
+        color: str,
+        button_label: str,
+        button_route: str,
+    ) -> None:
+        t = self._ctrl.theme.tokens
+        self._completion_col.controls.clear()
+        self._completion_col.controls.append(
+            ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Text(icon, size=SIZE_TITLE),
+                        ft.Text(
+                            message,
+                            size=SIZE_BODY,
+                            color=t.text_primary,
+                            font_family=FONT_TEXT,
+                            text_align=ft.TextAlign.CENTER,
+                        ),
+                        ft.Container(
+                            content=ft.Text(
+                                button_label,
+                                size=SIZE_BODY,
+                                color=t.accent,
+                                font_family=FONT_TEXT,
+                            ),
+                            on_click=lambda e: self._ctrl.navigate(button_route),
+                            ink=True,
+                            padding=ft.padding.symmetric(
+                                horizontal=SPACE_MD, vertical=SPACE_SM
+                            ),
+                            border=ft.border.all(1, t.accent),
+                            border_radius=RADIUS_SM,
+                        ),
+                    ],
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=SPACE_SM,
+                ),
+                bgcolor=t.bg_elevated,
+                border_radius=RADIUS_LG,
+                padding=SPACE_LG,
+                border=ft.border.all(1, t.border_light),
+                alignment=ft.Alignment(0, 0),
+            )
+        )
+        self._completion_col.visible = True
 
     def _create_log_handler(self) -> logging.Handler:
         monitor = self
@@ -434,21 +501,19 @@ class MonitorPage:
             total = event.total or 0
             self._update_branch_bar(branch, current, total)
 
+            self._overall_count.value = _records_label(self._source_key, current)
+            if total > 0:
+                self._overall_bar.value = min(current / total, 1.0)
+
         elif event.event_type == TelemetryEventType.BRANCH_DONE:
             branch = event.branch_url or ""
             final = event.current or 0
             self._total_records += final
 
-            # Обновляем счётчик с читаемой подписью
-            self._records_text.value = str(self._total_records)
-            self._records_label.value = (
-                _records_label(self._source_key, self._total_records)
-                .replace(str(self._total_records), "")
-                .strip()
-                + " собрано"
+            self._overall_count.value = _records_label(
+                self._source_key, self._total_records
             )
 
-            # Убираем активный прогресс-бар
             if branch in self._branch_rows:
                 row = self._branch_rows[branch]
                 if row in self._branches_col.controls:
@@ -459,7 +524,6 @@ class MonitorPage:
             if branch in self._branch_texts:
                 del self._branch_texts[branch]
 
-            # Добавляем в завершённые
             name = self._branch_name(branch)
             done_line = ft.Row(
                 [
@@ -467,23 +531,23 @@ class MonitorPage:
                         width=6,
                         height=6,
                         border_radius=3,
-                        bgcolor=t.accent,
+                        bgcolor=t.success,
                     ),
                     ft.Text(
                         name,
-                        size=12,
+                        size=SIZE_LABEL,
                         color=t.text_secondary,
-                        font_family="Inter",
+                        font_family=FONT_TEXT,
                         expand=True,
                     ),
                     ft.Text(
                         _records_label(self._source_key, final),
-                        size=12,
+                        size=SIZE_LABEL,
                         color=t.accent,
-                        font_family="Inter",
+                        font_family=FONT_TEXT,
                     ),
                 ],
-                spacing=8,
+                spacing=SPACE_SM,
             )
             self._completed_col.controls.insert(0, done_line)
             if len(self._completed_col.controls) > 10:
@@ -500,25 +564,56 @@ class MonitorPage:
 
         elif event.event_type == TelemetryEventType.WORKER_DONE:
             records = event.current or 0
+            self._is_monitoring = False
+            self._stop_btn.visible = False
+
             if records == 0:
-                self._status_text.value = "Парсинг завершён — 0 записей (проверьте параметры)"
+                self._status_text.value = "По запросу ничего не найдено"
                 self._status_text.color = t.accent_warn
-            elif records > 1000:
-                self._status_text.value = f"Парсинг завершён — {records} записей (большой объём)"
-                self._status_text.color = t.accent_warn
+                self._show_completion(
+                    "ℹ️",
+                    "По запросу ничего не найдено. Попробуйте другое ключевое слово.",
+                    t.accent_warn,
+                    "← Вернуться к поиску",
+                    "launcher",
+                )
             else:
-                self._status_text.value = "Парсинг завершён"
-                self._status_text.color = t.accent
+                elapsed_str = ""
+                if self._start_time is not None:
+                    elapsed = time.time() - self._start_time
+                    if elapsed < 60:
+                        elapsed_str = f" за {elapsed:.0f} сек."
+                    else:
+                        mins = int(elapsed // 60)
+                        secs = int(elapsed % 60)
+                        elapsed_str = f" за {mins} мин. {secs} сек."
+                self._status_text.value = "Сбор завершён"
+                self._status_text.color = t.success
+                self._show_completion(
+                    "✅",
+                    f"Сбор завершён. {_records_label(self._source_key, records)}{elapsed_str}",
+                    t.success,
+                    "Посмотреть результаты →",
+                    "results",
+                )
 
         elif event.event_type == TelemetryEventType.WORKER_ERROR:
             msg = event.error_message or "Неизвестная ошибка"
             self._status_text.value = f"Ошибка: {msg[:80]}"
             self._status_text.color = t.accent_danger
+            self._stop_btn.visible = False
+            self._is_monitoring = False
+            self._show_completion(
+                "⚠️",
+                f"Произошла ошибка: {msg[:100]}",
+                t.accent_danger,
+                "← Вернуться к поиску",
+                "launcher",
+            )
 
         self._ctrl.page.update()
 
     def _branch_name(self, branch: str) -> str:
-        """Извлекает читаемое имя из URL ветки."""
         url_parts = [p for p in branch.strip("/").split("/") if p]
         skip = {"reviews", "comments", "json", ""}
         clean_parts = [p for p in url_parts if p not in skip and not p.endswith(".json")]
@@ -544,20 +639,21 @@ class MonitorPage:
                 color=t.accent,
                 bgcolor=t.border,
                 expand=True,
-                border_radius=4,
+                border_radius=RADIUS_SM,
+                bar_height=4,
             )
             label = ft.Text(
                 name,
-                size=12,
+                size=SIZE_LABEL,
                 color=t.text_secondary,
-                font_family="Inter",
+                font_family=FONT_TEXT,
                 expand=True,
             )
             count = ft.Text(
                 f"{count_str} / {total_str}",
-                size=11,
-                color=t.text_muted,
-                font_family="Inter",
+                size=SIZE_CAPTION,
+                color=t.text_tertiary,
+                font_family=FONT_TEXT,
             )
             row = ft.Column(
                 [
@@ -567,7 +663,7 @@ class MonitorPage:
                     ),
                     bar,
                 ],
-                spacing=4,
+                spacing=SPACE_XS,
             )
             self._branch_bars[branch] = bar
             self._branch_texts[branch] = count
@@ -585,25 +681,62 @@ class MonitorPage:
             logging.ERROR: t.accent_danger,
             logging.CRITICAL: t.accent_danger,
         }
-        color = level_colors.get(record.levelno, t.text_muted)
+        color = level_colors.get(record.levelno, t.text_tertiary)
         time_str = datetime.datetime.fromtimestamp(record.created).strftime("%H:%M:%S")
 
         line = ft.Text(
             f"{time_str}  {record.getMessage()[:120]}",
-            size=11,
+            size=SIZE_CAPTION,
             color=color,
-            font_family="JetBrains Mono",
+            font_family=FONT_MONO,
             selectable=True,
         )
         self._log_col.controls.append(line)
 
-        # Лимит строк — удаляем старые сверху
         if len(self._log_col.controls) > self.MAX_LOG_LINES:
             self._log_col.controls.pop(0)
 
         self._ctrl.page.update()
 
-    def _on_stop(self, e: ft.ControlEvent) -> None:
+    def _on_stop_click(self, e: ft.ControlEvent) -> None:
+        t = self._ctrl.theme.tokens
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(
+                "Остановить сбор?",
+                color=t.text_primary,
+                font_family=FONT_DISPLAY,
+            ),
+            content=ft.Text(
+                "Уже собранные данные сохранятся.",
+                color=t.text_secondary,
+                font_family=FONT_TEXT,
+            ),
+            actions=[
+                ft.TextButton(
+                    "Продолжить",
+                    on_click=lambda _: self._close_dialog(),
+                ),
+                ft.TextButton(
+                    "Остановить",
+                    on_click=lambda _: self._confirm_stop(),
+                    style=ft.ButtonStyle(color=t.warning),
+                ),
+            ],
+        )
+        self._ctrl.page.dialog = dlg  # type: ignore[attr-defined]
+        self._ctrl.page.dialog.open = True  # type: ignore[attr-defined]
+        self._ctrl.page.update()
+
+    def _close_dialog(self) -> None:
+        self._ctrl.page.dialog.open = False  # type: ignore[attr-defined]
+        self._ctrl.page.update()
+
+    def _confirm_stop(self) -> None:
+        self._close_dialog()
+        self._do_stop()
+
+    def _do_stop(self) -> None:
         t = self._ctrl.theme.tokens
         self._ctrl.stop_parsing()
         self._is_monitoring = False
@@ -611,3 +744,6 @@ class MonitorPage:
         self._status_text.value = "Остановлено"
         self._status_text.color = t.accent_warn
         self._ctrl.page.update()
+
+    def _on_stop(self, e: ft.ControlEvent) -> None:
+        self._do_stop()
