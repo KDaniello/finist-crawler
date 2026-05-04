@@ -192,21 +192,31 @@ class StealthExecutor:
                         if phase == "list":
                             is_two_stage = bool(plan.detail_fields)
                             if is_two_stage:
-                                max_reached = plan.max_records is not None and total_records >= plan.max_records
+                                max_reached = (
+                                    plan.max_records is not None
+                                    and total_records >= plan.max_records
+                                )
                                 if not max_reached:
                                     for r in records:
                                         d_url = r.get("detail_url")
-                                    if d_url:
-                                        if plan.detail_url_template:
-                                            d_url = plan.detail_url_template.replace(
-                                                "{}", str(d_url)
-                                            )
-                                        if d_url not in enqueued:
-                                            detail_queue.append((d_url, "detail", 0))
-                                            enqueued.add(d_url)
+                                        if d_url:
+                                            if plan.detail_url_template:
+                                                d_url = (
+                                                    plan.detail_url_template.replace(
+                                                        "{}", str(d_url)
+                                                    )
+                                                )
+                                            if d_url not in enqueued:
+                                                detail_queue.append(
+                                                    (d_url, "detail", 0)
+                                                )
+                                                enqueued.add(d_url)
                             else:
                                 if records:
-                                    if plan.max_records is not None and total_records + len(records) > plan.max_records:
+                                    if (
+                                        plan.max_records is not None
+                                        and total_records + len(records) > plan.max_records
+                                    ):
                                         trim = plan.max_records - total_records
                                         trimmed = records[:trim]
                                         if trimmed:
@@ -215,6 +225,10 @@ class StealthExecutor:
                                     else:
                                         save_cb(records)
                                         total_records += len(records)
+
+                            logger.info(
+                                f"TELEMETRY|PROGRESS|list|{total_records}|{plan.max_records or -1}"
+                            )
 
                             list_pages_crawled += 1
                             if next_url and next_url not in visited and next_url not in enqueued:

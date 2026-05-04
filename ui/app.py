@@ -20,10 +20,10 @@ from ui.theme import FONT_DISPLAY, FONT_TEXT, ThemeController
 logger = logging.getLogger(__name__)
 
 _WINDOW_DEFAULTS = {
-    "width": 1200,
-    "height": 800,
-    "min_width": 960,
-    "min_height": 640,
+    "width": 960,
+    "height": 600,
+    "min_width": 800,
+    "min_height": 500,
 }
 
 

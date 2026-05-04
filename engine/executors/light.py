@@ -205,6 +205,8 @@ class LightExecutor:
                                 save_cb(records)
                                 total_records += len(records)
 
+                        logger.info(f"TELEMETRY|PROGRESS|list|{total_records}|{plan.max_records or -1}")
+
                     if next_url and next_url not in visited and next_url not in enqueued:
                         list_queue.append((next_url, "list", 0))
                         enqueued.add(next_url)

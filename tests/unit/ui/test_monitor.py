@@ -129,6 +129,18 @@ class TestMonitorTelemetry:
         assert abs(float(bar_value) - 0.2) < 0.01
 
     @pytest.mark.asyncio
+    async def test_apply_telemetry_progress_updates_status(self, mock_ctrl: MagicMock) -> None:
+        page = MonitorPage(mock_ctrl)
+        page.build()
+        event = TelemetryEvent(
+            event_type=TelemetryEventType.PROGRESS,
+            current=5,
+        )
+        await page._apply_telemetry(event)
+        assert page._status_text.value == "Сбор данных..."
+        assert page._status_text.color == mock_ctrl.theme.tokens.accent
+
+    @pytest.mark.asyncio
     async def test_apply_telemetry_branch_done(self, mock_ctrl: MagicMock) -> None:
         page = MonitorPage(mock_ctrl)
         page.build()
@@ -182,32 +194,6 @@ class TestMonitorTelemetry:
         assert page._is_monitoring is False
 
 
-class TestMonitorAddLogLine:
-    @pytest.mark.asyncio
-    async def test_add_log_line(self, mock_ctrl: MagicMock) -> None:
-        page = MonitorPage(mock_ctrl)
-        page.build()
-        record = logging.LogRecord(
-            name="test", level=logging.INFO, pathname="", lineno=0,
-            msg="Test message", args=(), exc_info=None,
-        )
-        await page._add_log_line(record)
-        assert len(page._log_col.controls) == 1
-
-    @pytest.mark.asyncio
-    async def test_add_log_line_truncates_at_max(self, mock_ctrl: MagicMock) -> None:
-        page = MonitorPage(mock_ctrl)
-        page.build()
-        page.MAX_LOG_LINES = 3
-        for i in range(5):
-            record = logging.LogRecord(
-                name="test", level=logging.INFO, pathname="", lineno=0,
-                msg=f"Msg {i}", args=(), exc_info=None,
-            )
-            await page._add_log_line(record)
-        assert len(page._log_col.controls) == 3
-
-
 class TestMonitorOnStop:
     def test_on_stop(self, mock_ctrl: MagicMock) -> None:
         page = MonitorPage(mock_ctrl)
@@ -250,3 +236,25 @@ class TestMonitorProgressLabel:
         page._source_key = "reddit"
         page._total_records = 42
         assert "из ~500" in page._progress_label()
+
+
+class TestMonitorLogHandler:
+    def test_handler_routes_telemetry(self, mock_ctrl: MagicMock) -> None:
+        page = MonitorPage(mock_ctrl)
+        handler = page._create_log_handler()
+        record = logging.LogRecord(
+            name="test", level=logging.INFO, pathname="", lineno=0,
+            msg="TELEMETRY|PROGRESS|list|10|500", args=(), exc_info=None,
+        )
+        handler.emit(record)
+        mock_ctrl.page.run_task.assert_called()
+
+    def test_handler_ignores_non_telemetry(self, mock_ctrl: MagicMock) -> None:
+        page = MonitorPage(mock_ctrl)
+        handler = page._create_log_handler()
+        record = logging.LogRecord(
+            name="test", level=logging.INFO, pathname="", lineno=0,
+            msg="Regular log message", args=(), exc_info=None,
+        )
+        handler.emit(record)
+        mock_ctrl.page.run_task.assert_not_called()

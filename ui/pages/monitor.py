@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime
 import logging
 import threading
 import time
@@ -12,7 +11,6 @@ from core.telemetry import TelemetryEvent, TelemetryEventType
 from ui.app import AppController
 from ui.theme import (
     FONT_DISPLAY,
-    FONT_MONO,
     FONT_TEXT,
     RADIUS_LG,
     RADIUS_SM,
@@ -20,7 +18,6 @@ from ui.theme import (
     SIZE_CAPTION,
     SIZE_HEADING,
     SIZE_LABEL,
-    SIZE_TITLE,
     SPACE_LG,
     SPACE_MD,
     SPACE_SM,
@@ -64,8 +61,6 @@ def _source_display_name(spec_name: str) -> str:
 
 class MonitorPage:
     """Страница мониторинга активного парсинга."""
-
-    MAX_LOG_LINES = 100
 
     def __init__(self, controller: AppController) -> None:
         self._ctrl = controller
@@ -113,7 +108,6 @@ class MonitorPage:
             color=t.text_tertiary,
             font_family=FONT_TEXT,
         )
-        self._log_col = ft.Column([], spacing=2, scroll=ft.ScrollMode.AUTO, expand=True)
         self._completion_col = ft.Column([], spacing=SPACE_MD, visible=False)
 
         self._stop_btn = ft.Container(
@@ -142,7 +136,6 @@ class MonitorPage:
         self._total_records = 0
         self._source_key = ""
         self._start_time = None
-        self._log_col.controls.clear()
         self._completion_col.controls.clear()
         self._completion_col.visible = False
         t = self._ctrl.theme.tokens
@@ -232,44 +225,15 @@ class MonitorPage:
             spacing=0,
         )
 
-        logs_card = ft.Container(
-            content=ft.Column(
-                [
-                    ft.Text(
-                        "Журнал событий",
-                        size=SIZE_CAPTION,
-                        color=t.text_tertiary,
-                        font_family=FONT_TEXT,
-                        weight=ft.FontWeight.W_500,
-                    ),
-                    ft.Container(
-                        content=self._log_col,
-                        height=200,
-                        bgcolor=t.bg_primary,
-                        border_radius=RADIUS_SM,
-                        padding=SPACE_SM,
-                        clip_behavior=ft.ClipBehavior.HARD_EDGE,
-                    ),
-                ],
-                spacing=SPACE_SM,
-            ),
-            bgcolor=t.bg_elevated,
-            border_radius=RADIUS_LG,
-            padding=SPACE_LG,
-            border=ft.Border.all(1, t.border_light),
-        )
-
         return ft.Container(
             content=ft.Column(
                 [
                     header,
                     progress_card,
                     metrics_row,
-                    logs_card,
                     self._completion_col,
                 ],
                 spacing=SPACE_MD,
-                scroll=ft.ScrollMode.AUTO,
             ),
             padding=ft.Padding.symmetric(horizontal=SPACE_XL, vertical=SPACE_LG),
             expand=True,
@@ -367,7 +331,7 @@ class MonitorPage:
             ft.Container(
                 content=ft.Column(
                     [
-                        ft.Text(icon, size=SIZE_TITLE),
+                        ft.Text(icon, size=SIZE_HEADING),
                         ft.Text(
                             message,
                             size=SIZE_BODY,
@@ -413,10 +377,6 @@ class MonitorPage:
                     event = TelemetryEvent.from_log_message(msg)
                     if event is not None:
                         monitor._ctrl.page.run_task(monitor._apply_telemetry, event)
-                        return
-                    if record.levelno < logging.INFO:
-                        return
-                    monitor._ctrl.page.run_task(monitor._add_log_line, record)
                 except Exception:
                     pass
 
@@ -428,7 +388,7 @@ class MonitorPage:
         t = self._ctrl.theme.tokens
 
         if event.event_type == TelemetryEventType.PAGE_START:
-            self._status_text.value = f"Страница {event.page_number}..."
+            self._status_text.value = f"Загрузка страницы {event.page_number}..."
             self._status_text.color = t.text_secondary
 
         elif event.event_type == TelemetryEventType.PROGRESS:
@@ -440,6 +400,8 @@ class MonitorPage:
                 self._overall_bar.value = min(current / target, 1.0)
             elif current > 0:
                 self._overall_bar.value = min(current / (current + 50), 0.95)
+            self._status_text.value = "Сбор данных..."
+            self._status_text.color = t.accent
 
         elif event.event_type == TelemetryEventType.BRANCH_DONE:
             final = event.current or 0
@@ -508,31 +470,6 @@ class MonitorPage:
                 "← Вернуться к поиску",
                 "launcher",
             )
-
-        self._ctrl.page.update()
-
-    async def _add_log_line(self, record: logging.LogRecord) -> None:
-        t = self._ctrl.theme.tokens
-        level_colors = {
-            logging.INFO: t.text_secondary,
-            logging.WARNING: t.accent_warn,
-            logging.ERROR: t.accent_danger,
-            logging.CRITICAL: t.accent_danger,
-        }
-        color = level_colors.get(record.levelno, t.text_tertiary)
-        time_str = datetime.datetime.fromtimestamp(record.created).strftime("%H:%M:%S")
-
-        line = ft.Text(
-            f"{time_str}  {record.getMessage()[:120]}",
-            size=SIZE_CAPTION,
-            color=color,
-            font_family=FONT_MONO,
-            selectable=True,
-        )
-        self._log_col.controls.append(line)
-
-        if len(self._log_col.controls) > self.MAX_LOG_LINES:
-            self._log_col.controls.pop(0)
 
         self._ctrl.page.update()
 
