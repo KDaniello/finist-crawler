@@ -28,13 +28,21 @@ crawler:
 
   limits:
     max_pages: 1
-    detail_max_pages: 10
-    concurrency: 3
-    requests_per_second: 0.9
-    request_timeout_sec: 20
+    detail_max_pages: 10  # 10 pages × 50 reviews = max ~500 reviews per session
+    concurrency: 3        # Steam tolerates moderate concurrency
+    requests_per_second: 0.9  # Just under 1 req/s to avoid rate-limiting
+    request_timeout_sec: 20   # Empirical: Steam API usually responds within 5-10s
 
   detail:
     # {app_id} подставляется из config_overrides.template_params.app_id
+    # Параметры URL:
+    #   json=1          — вернуть JSON (обязательный для API)
+    #   filter=recent   — сортировка по дате (recent = самые новые)
+    #   language=all    — отзывы на всех языках (Steam фильтрует по языку review, не интерфейса)
+    #   num_per_page=50 — максимум отзывов на страницу (max=100 в API, 50 для стабильности)
+    #   cursor=*        — курсор пагинации (Steam cursor-based, *=начало)
+    #   cc=RU           — регион цен и контента (Russia)
+    #   l=russian       — язык интерфейса локализации Store
     url_template: "https://store.steampowered.com/appreviews/{app_id}?json=1&filter=recent&language=all&num_per_page=50&cursor=*&cc=RU&l=russian"
     extraction_mode: steam
 

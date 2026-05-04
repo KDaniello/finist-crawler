@@ -498,6 +498,23 @@ class MonitorPage:
             self._status_text.value = "Капча пройдена, продолжаем..."
             self._status_text.color = t.accent
 
+        elif event.event_type == TelemetryEventType.WORKER_DONE:
+            records = event.current or 0
+            if records == 0:
+                self._status_text.value = "Парсинг завершён — 0 записей (проверьте параметры)"
+                self._status_text.color = t.accent_warn
+            elif records > 1000:
+                self._status_text.value = f"Парсинг завершён — {records} записей (большой объём)"
+                self._status_text.color = t.accent_warn
+            else:
+                self._status_text.value = "Парсинг завершён"
+                self._status_text.color = t.accent
+
+        elif event.event_type == TelemetryEventType.WORKER_ERROR:
+            msg = event.error_message or "Неизвестная ошибка"
+            self._status_text.value = f"Ошибка: {msg[:80]}"
+            self._status_text.color = t.accent_danger
+
         self._ctrl.page.update()
 
     def _branch_name(self, branch: str) -> str:

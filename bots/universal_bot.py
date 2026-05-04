@@ -68,10 +68,24 @@ def run_universal_bot(
                 f"💾 Сохранено записей: {total_saved}"
             )
 
+            logger.info(f"TELEMETRY|WORKER_DONE|{spec_name}|{total_saved}")
+
+            if total_saved == 0:
+                logger.warning(
+                    f"⚠️ Спек [{spec_name}] вернул 0 записей. "
+                    f"Возможные причины: неверный параметр, пустой результат или блокировка."
+                )
+            elif total_saved > 1000:
+                logger.warning(
+                    f"⚠️ Спек [{spec_name}] собрал {total_saved} записей — "
+                    f"объём превышает 1000. Проверьте лимиты в настройках."
+                )
+
         except asyncio.CancelledError:
             logger.warning(f"⚠️ Процесс [{spec_name}] принудительно остановлен пользователем.")
         except Exception as e:
             logger.critical(f"❌ Критическая ошибка в боте [{spec_name}]: {e}", exc_info=True)
+            logger.info(f"TELEMETRY|WORKER_ERROR|{spec_name}|{e}")
         finally:
             logger.info(f"🏁 Процесс [{spec_name}] завершает работу.")
 
