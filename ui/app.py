@@ -274,7 +274,11 @@ class _PageProtocol(Protocol):
     def build(self) -> ft.Control: ...
 
 
-def main(page: ft.Page, worker_target: Callable[..., None] | None = None) -> None:
+def main(
+    page: ft.Page,
+    worker_target: Callable[..., None] | None = None,
+    sources: list[dict[str, Any]] | None = None,
+) -> None:
     """Точка входа Flet приложения."""
     from core import get_paths, get_settings
 
@@ -311,18 +315,12 @@ def main(page: ft.Page, worker_target: Callable[..., None] | None = None) -> Non
     page.bgcolor = ctrl.theme.tokens.bg_primary
     page.theme_mode = ft.ThemeMode.DARK if ctrl.theme.is_dark else ft.ThemeMode.LIGHT
 
-    try:
-        from engine.spec_loader import discover_sources
-
-        sources = discover_sources(paths.specs_dir)
-    except Exception:
-        logger.warning("Failed to discover sources from specs", exc_info=True)
-        sources = []
+    resolved_sources: list[dict[str, Any]] = sources if sources is not None else []
 
     try:
         from ui.pages.launcher import LauncherPage
 
-        launcher: _PageProtocol = LauncherPage(ctrl, sources)
+        launcher: _PageProtocol = LauncherPage(ctrl, resolved_sources)
     except ImportError:
         launcher = _PlaceholderPage("🚀 Запуск")
 
