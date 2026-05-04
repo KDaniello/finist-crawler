@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import flet as ft
@@ -324,10 +325,15 @@ class LauncherPage:
             return
 
         if source["param_key"] == "app_id" and not param_value.isdigit():
-            self._status_text.value = "App ID должен быть числом (например, 1091500)"
-            self._status_text.color = t.accent_danger
-            self._ctrl.page.update()
-            return
+            url_match = re.search(r"/app/(\d+)", param_value)
+            if url_match:
+                param_value = url_match.group(1)
+                self._param_field.value = param_value
+            else:
+                self._status_text.value = "Введите числовой App ID или ссылку на игру (например, 1091500 или https://store.steampowered.com/app/1091500/...)"
+                self._status_text.color = t.accent_danger
+                self._ctrl.page.update()
+                return
 
         if source["param_key"] == "direct_url" and not param_value.startswith("http"):
             self._status_text.value = "Введите корректный URL (https://...)"
