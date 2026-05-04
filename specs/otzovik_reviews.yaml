@@ -15,7 +15,7 @@ ui:
   tag: Отзывы
 
 crawler:
-  render: browser
+  render: auto
   request_headers:
     Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"
     Accept-Language: "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
@@ -23,9 +23,10 @@ crawler:
 
   limits:
     max_pages: 3
-    request_timeout_sec: 30
+    request_timeout_sec: 60
     concurrency: 1
-    requests_per_second: 1.5 
+    requests_per_second: 1.5
+    render_wait_ms: 5000
 
   list:
     url_template: "https://otzovik.com/reviews/{keyword}/"
