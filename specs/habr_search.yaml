@@ -25,10 +25,17 @@ crawler:
   limits:
     max_pages: 2 
     # Conservative defaults to avoid rate-limiting and IP blocks
-    concurrency: 3
-    requests_per_second: 3.0
+    concurrency: 3        # Хабр лимитирует частые запросы
+    requests_per_second: 3.0  # Умеренный ритм, избежать 429
 
   list:
+    # Параметры URL:
+    #   query={keyword}  — поисковый запрос
+    #   order=relevance  — сортировка по релевантности (date = по дате)
+    #   fl=ru            — фильтр по русскому языку статей
+    #   hl=ru            — подсветка совпадений на русском
+    #   page=1           — номер страницы пагинации
+    #   perPage=20       — статей на страницу (max=50 в API, 20 для скорости)
     url_template: "https://habr.com/kek/v2/articles/?query={keyword}&order=relevance&fl=ru&hl=ru&page=1&perPage=20"
     extraction_mode: json
     item_selector: "publicationRefs.*"
@@ -41,6 +48,8 @@ crawler:
       attr: "1"
 
   detail:
+    # {} подставляется ID статьи из list-этапа
+    # fl=ru, hl=ru — русская локаль для контента и подсветки
     url_template: "https://habr.com/kek/v2/articles/{}/?fl=ru&hl=ru"
     extraction_mode: json
     item_selector: "@"

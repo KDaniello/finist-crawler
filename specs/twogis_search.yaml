@@ -25,8 +25,8 @@ crawler:
 
   limits:
     max_pages: 3 # Сколько страниц ПОИСКА мы пройдем
-    max_records: 100
-    request_timeout_sec: 15
+    max_records: 100  # Лимит записей чтобы не собирать тысячи отзывов крупной сети
+    request_timeout_sec: 15  # 2GIS обычно отвечает быстро, 15s с запасом
 
   # =======================================================
   # ЭТАП 1: ПОИСК (Парсим чистый HTML с сайта 2GIS)
@@ -57,7 +57,18 @@ crawler:
   # =======================================================
   detail:
     # {} - сюда движок подставит ID из поля detail_url (из 1 этапа).
-    # Public API key — if 2GIS rotates it, update here
+    # Параметры URL:
+    #   limit=50          — отзывов на страницу (max по API docs = 50)
+    #   offset=0          — стартовая позиция пагинации (инкремент по 50)
+    #   is_advertiser=false — исключить рекламные отзывы
+    #   fields=...        — запрашиваемые поля (мета-рейтинг, эмодзи, траст)
+    #   rated=true        — только оценки с текстом отзыва
+    #   sort_by=trust     — сортировка по рейтингу доверия 2GIS
+    #   key=...           — Public API key 2GIS Reviews API
+    #     Источник: https://dev.2gis.com/ (публичный, не требует регистрации)
+    #     Последняя проверка: 2026-05-04 — ключ работает
+    #     Если 2GIS ротирует ключ — обновить здесь
+    #   locale=ru_RU      — русская локаль
     url_template: "https://public-api.reviews.2gis.com/3.0/branches/{}/reviews?limit=50&offset=0&is_advertiser=false&fields=meta.providers,meta.branch_rating,meta.branch_reviews_count,meta.total_count,reviews.hiding_reason,reviews.emojis,reviews.trust_factors&without_my_first_review=false&rated=true&sort_by=trust&key=6e7e1929-4ea9-4a5d-8c05-d601860389bd&locale=ru_RU"
     extraction_mode: json
     item_selector: "reviews"

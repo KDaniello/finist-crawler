@@ -30,16 +30,22 @@ crawler:
   limits:
     max_pages: 5          # страниц Search API (5 × 10 = 50 статей)
     detail_max_pages: 0   # 0 = все статьи из list (без ограничения detail)
-    concurrency: 5
-    requests_per_second: 3.0
-    request_timeout_sec: 20
+    concurrency: 5        # Lenta не агрессивно блокирует
+    requests_per_second: 3.0  # Умеренный ритм, avoiding triggering WAF
+    request_timeout_sec: 20   # Lenta иногда медлит на detail-страницах
 
   # ==========================================================
   # ЭТАП 1: Search API v2
   # ==========================================================
   list:
     # {keyword} подставляется из config_overrides.template_params.keyword
-    # Lenta API uses comma-separated modifier: modified,format=yyyy-MM-dd
+    # Параметры URL:
+    #   from=0                    — стартовая позиция пагинации (инкремент по size)
+    #   size=10                   — статей на страницу (значение по умолчанию API)
+    #   sort=2                    — сортировка: 2 = по релевантности (1 = по дате)
+    #   title_only=0              — 0 = искать в полном тексте, 1 = только в заголовке
+    #   domain=1                  — 1 = все домены Lenta.ru (включая поддомены)
+    #   modified,format=yyyy-MM-dd — модификатор формата дат в ответе
     url_template: "https://lenta.ru/search/v2/process?query={keyword}&from=0&size=10&sort=2&title_only=0&domain=1&modified,format=yyyy-MM-dd"
     extraction_mode: lenta_search
 
