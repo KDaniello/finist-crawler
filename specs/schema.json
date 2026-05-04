@@ -45,7 +45,12 @@
             "request_timeout_sec": { "type": "integer", "minimum": 1 },
             "render_wait_ms": { "type": "integer", "minimum": 0 },
             "concurrency": { "type": "integer", "minimum": 1 },
-            "requests_per_second": { "type": "number", "minimum": 0.1 }
+            "requests_per_second": { "type": "number", "minimum": 0.1 },
+            "max_records": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Максимум записей. null = без ограничений"
+            }
           },
           "additionalProperties": false
         },
