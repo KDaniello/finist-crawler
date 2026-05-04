@@ -45,15 +45,6 @@ _SOURCE_LABELS = {
     "twogis_reviews": "отзывов",
 }
 
-_SOURCE_ICONS = {
-    "habr_articles": "📰",
-    "lenta_articles": "📡",
-    "reddit_discussions": "💬",
-    "steam_reviews": "🎮",
-    "otzovik_reviews": "⭐",
-    "twogis_reviews": "🗺️",
-}
-
 
 def _records_label(source_key: str, count: int) -> str:
     for key, label in _SOURCE_LABELS.items():
@@ -78,9 +69,6 @@ class MonitorPage:
 
     def __init__(self, controller: AppController) -> None:
         self._ctrl = controller
-        self._branch_bars: dict[str, ft.ProgressBar] = {}
-        self._branch_texts: dict[str, ft.Text] = {}
-        self._branch_rows: dict[str, ft.Column] = {}
         self._is_monitoring = False
         self._total_records = 0
         self._source_key: str = ""
@@ -119,20 +107,12 @@ class MonitorPage:
             color=t.text_tertiary,
             font_family=FONT_TEXT,
         )
-        self._ram_text = ft.Text(
-            "RAM: — MB",
-            size=SIZE_CAPTION,
-            color=t.text_tertiary,
-            font_family=FONT_TEXT,
-        )
         self._elapsed_text = ft.Text(
             "Прошло: 00:00:00",
             size=SIZE_CAPTION,
             color=t.text_tertiary,
             font_family=FONT_TEXT,
         )
-        self._branches_col = ft.Column([], spacing=SPACE_SM)
-        self._completed_col = ft.Column([], spacing=SPACE_XS)
         self._log_col = ft.Column([], spacing=2, scroll=ft.ScrollMode.AUTO, expand=True)
         self._completion_col = ft.Column([], spacing=SPACE_MD, visible=False)
 
@@ -152,7 +132,7 @@ class MonitorPage:
             ),
             bgcolor=t.accent_danger,
             border_radius=RADIUS_SM,
-            padding=ft.padding.symmetric(horizontal=SPACE_MD, vertical=SPACE_SM),
+            padding=ft.Padding.symmetric(horizontal=SPACE_MD, vertical=SPACE_SM),
             on_click=self._on_stop_click,  # type: ignore[arg-type]
             ink=True,
             visible=False,
@@ -162,11 +142,6 @@ class MonitorPage:
         self._total_records = 0
         self._source_key = ""
         self._start_time = None
-        self._branch_bars.clear()
-        self._branch_texts.clear()
-        self._branch_rows.clear()
-        self._branches_col.controls.clear()
-        self._completed_col.controls.clear()
         self._log_col.controls.clear()
         self._completion_col.controls.clear()
         self._completion_col.visible = False
@@ -177,6 +152,17 @@ class MonitorPage:
         self._status_text.color = t.text_secondary
         self._speed_text.value = "Скорость: — зап/с"
         self._elapsed_text.value = "Прошло: 00:00:00"
+
+    @property
+    def _target_records(self) -> int | None:
+        return self._ctrl.active_max_records
+
+    def _progress_label(self) -> str:
+        current = self._total_records
+        target = self._target_records
+        if target and target > 0:
+            return f"{_records_label(self._source_key, current)} из ~{target}"
+        return _records_label(self._source_key, current)
 
     def build(self) -> ft.Control:
         t = self._ctrl.theme.tokens
@@ -196,7 +182,7 @@ class MonitorPage:
             ),
             on_click=lambda e: self._ctrl.navigate("launcher"),
             ink=True,
-            padding=ft.padding.symmetric(horizontal=SPACE_SM, vertical=SPACE_XS),
+            padding=ft.Padding.symmetric(horizontal=SPACE_SM, vertical=SPACE_XS),
             border_radius=RADIUS_SM,
         )
 
@@ -234,63 +220,16 @@ class MonitorPage:
             bgcolor=t.bg_elevated,
             border_radius=RADIUS_LG,
             padding=SPACE_LG,
-            border=ft.border.all(1, t.border_light),
+            border=ft.Border.all(1, t.border_light),
         )
 
         metrics_row = ft.Row(
             [
                 self._speed_text,
                 ft.Container(width=SPACE_LG),
-                self._ram_text,
-                ft.Container(width=SPACE_LG),
                 self._elapsed_text,
             ],
             spacing=0,
-        )
-
-        branches_card = ft.Container(
-            content=ft.Column(
-                [
-                    ft.Row(
-                        [
-                            ft.Text(
-                                "В процессе",
-                                size=SIZE_CAPTION,
-                                color=t.text_tertiary,
-                                font_family=FONT_TEXT,
-                                weight=ft.FontWeight.W_500,
-                            ),
-                            ft.Container(expand=True),
-                            ft.Text(
-                                "Завершено",
-                                size=SIZE_CAPTION,
-                                color=t.text_tertiary,
-                                font_family=FONT_TEXT,
-                                weight=ft.FontWeight.W_500,
-                            ),
-                        ],
-                    ),
-                    ft.Row(
-                        [
-                            ft.Container(
-                                content=self._branches_col,
-                                expand=True,
-                            ),
-                            ft.Container(
-                                content=self._completed_col,
-                                expand=True,
-                            ),
-                        ],
-                        spacing=SPACE_MD,
-                        vertical_alignment=ft.CrossAxisAlignment.START,
-                    ),
-                ],
-                spacing=SPACE_SM,
-            ),
-            bgcolor=t.bg_elevated,
-            border_radius=RADIUS_LG,
-            padding=SPACE_LG,
-            border=ft.border.all(1, t.border_light),
         )
 
         logs_card = ft.Container(
@@ -305,7 +244,7 @@ class MonitorPage:
                     ),
                     ft.Container(
                         content=self._log_col,
-                        height=160,
+                        height=200,
                         bgcolor=t.bg_primary,
                         border_radius=RADIUS_SM,
                         padding=SPACE_SM,
@@ -317,7 +256,7 @@ class MonitorPage:
             bgcolor=t.bg_elevated,
             border_radius=RADIUS_LG,
             padding=SPACE_LG,
-            border=ft.border.all(1, t.border_light),
+            border=ft.Border.all(1, t.border_light),
         )
 
         return ft.Container(
@@ -326,14 +265,13 @@ class MonitorPage:
                     header,
                     progress_card,
                     metrics_row,
-                    branches_card,
                     logs_card,
                     self._completion_col,
                 ],
                 spacing=SPACE_MD,
                 scroll=ft.ScrollMode.AUTO,
             ),
-            padding=ft.padding.symmetric(horizontal=SPACE_XL, vertical=SPACE_LG),
+            padding=ft.Padding.symmetric(horizontal=SPACE_XL, vertical=SPACE_LG),
             expand=True,
             bgcolor=t.bg_primary,
         )
@@ -375,8 +313,6 @@ class MonitorPage:
 
     async def _update_resources_ui(self, stats: SystemStats) -> None:
         t = self._ctrl.theme.tokens
-
-        self._ram_text.value = f"RAM: {stats.app_memory_mb:.0f} MB"
 
         if self._start_time is not None:
             elapsed = time.time() - self._start_time
@@ -448,10 +384,10 @@ class MonitorPage:
                             ),
                             on_click=lambda e: self._ctrl.navigate(button_route),
                             ink=True,
-                            padding=ft.padding.symmetric(
+                            padding=ft.Padding.symmetric(
                                 horizontal=SPACE_MD, vertical=SPACE_SM
                             ),
-                            border=ft.border.all(1, t.accent),
+                            border=ft.Border.all(1, t.accent),
                             border_radius=RADIUS_SM,
                         ),
                     ],
@@ -461,7 +397,7 @@ class MonitorPage:
                 bgcolor=t.bg_elevated,
                 border_radius=RADIUS_LG,
                 padding=SPACE_LG,
-                border=ft.border.all(1, t.border_light),
+                border=ft.Border.all(1, t.border_light),
                 alignment=ft.Alignment(0, 0),
             )
         )
@@ -496,62 +432,22 @@ class MonitorPage:
             self._status_text.color = t.text_secondary
 
         elif event.event_type == TelemetryEventType.PROGRESS:
-            branch = event.branch_url or ""
             current = event.current or 0
-            total = event.total or 0
-            self._update_branch_bar(branch, current, total)
-
-            self._overall_count.value = _records_label(self._source_key, current)
-            if total > 0:
-                self._overall_bar.value = min(current / total, 1.0)
+            self._total_records = current
+            self._overall_count.value = self._progress_label()
+            target = self._target_records
+            if target and target > 0:
+                self._overall_bar.value = min(current / target, 1.0)
+            elif current > 0:
+                self._overall_bar.value = min(current / (current + 50), 0.95)
 
         elif event.event_type == TelemetryEventType.BRANCH_DONE:
-            branch = event.branch_url or ""
             final = event.current or 0
             self._total_records += final
-
-            self._overall_count.value = _records_label(
-                self._source_key, self._total_records
-            )
-
-            if branch in self._branch_rows:
-                row = self._branch_rows[branch]
-                if row in self._branches_col.controls:
-                    self._branches_col.controls.remove(row)
-                del self._branch_rows[branch]
-            if branch in self._branch_bars:
-                del self._branch_bars[branch]
-            if branch in self._branch_texts:
-                del self._branch_texts[branch]
-
-            name = self._branch_name(branch)
-            done_line = ft.Row(
-                [
-                    ft.Container(
-                        width=6,
-                        height=6,
-                        border_radius=3,
-                        bgcolor=t.success,
-                    ),
-                    ft.Text(
-                        name,
-                        size=SIZE_LABEL,
-                        color=t.text_secondary,
-                        font_family=FONT_TEXT,
-                        expand=True,
-                    ),
-                    ft.Text(
-                        _records_label(self._source_key, final),
-                        size=SIZE_LABEL,
-                        color=t.accent,
-                        font_family=FONT_TEXT,
-                    ),
-                ],
-                spacing=SPACE_SM,
-            )
-            self._completed_col.controls.insert(0, done_line)
-            if len(self._completed_col.controls) > 10:
-                self._completed_col.controls.pop()
+            self._overall_count.value = self._progress_label()
+            target = self._target_records
+            if target and target > 0:
+                self._overall_bar.value = min(self._total_records / target, 1.0)
 
         elif event.event_type == TelemetryEventType.CAPTCHA_WAITING:
             secs = event.seconds_remaining or 0
@@ -564,6 +460,7 @@ class MonitorPage:
 
         elif event.event_type == TelemetryEventType.WORKER_DONE:
             records = event.current or 0
+            self._total_records = records
             self._is_monitoring = False
             self._stop_btn.visible = False
 
@@ -589,6 +486,7 @@ class MonitorPage:
                         elapsed_str = f" за {mins} мин. {secs} сек."
                 self._status_text.value = "Сбор завершён"
                 self._status_text.color = t.success
+                self._overall_count.value = self._progress_label()
                 self._show_completion(
                     "✅",
                     f"Сбор завершён. {_records_label(self._source_key, records)}{elapsed_str}",
@@ -612,66 +510,6 @@ class MonitorPage:
             )
 
         self._ctrl.page.update()
-
-    def _branch_name(self, branch: str) -> str:
-        url_parts = [p for p in branch.strip("/").split("/") if p]
-        skip = {"reviews", "comments", "json", ""}
-        clean_parts = [p for p in url_parts if p not in skip and not p.endswith(".json")]
-        if len(clean_parts) >= 2:
-            name = clean_parts[-2]
-        elif clean_parts:
-            name = clean_parts[-1]
-        else:
-            name = branch[:30]
-        return name[:40] + "..." if len(name) > 40 else name
-
-    def _update_branch_bar(self, branch: str, current: int, total: int) -> None:
-        t = self._ctrl.theme.tokens
-        name = self._branch_name(branch)
-        effective_total = total if total > 0 else current + 50
-        value = min(current / effective_total, 1.0) if effective_total > 0 else 0
-        total_str = str(total) if total > 0 else "?"
-        count_str = _records_label(self._source_key, current)
-
-        if branch not in self._branch_bars:
-            bar = ft.ProgressBar(
-                value=value,
-                color=t.accent,
-                bgcolor=t.border,
-                expand=True,
-                border_radius=RADIUS_SM,
-                bar_height=4,
-            )
-            label = ft.Text(
-                name,
-                size=SIZE_LABEL,
-                color=t.text_secondary,
-                font_family=FONT_TEXT,
-                expand=True,
-            )
-            count = ft.Text(
-                f"{count_str} / {total_str}",
-                size=SIZE_CAPTION,
-                color=t.text_tertiary,
-                font_family=FONT_TEXT,
-            )
-            row = ft.Column(
-                [
-                    ft.Row(
-                        [label, count],
-                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                    ),
-                    bar,
-                ],
-                spacing=SPACE_XS,
-            )
-            self._branch_bars[branch] = bar
-            self._branch_texts[branch] = count
-            self._branch_rows[branch] = row
-            self._branches_col.controls.append(row)
-        else:
-            self._branch_bars[branch].value = value
-            self._branch_texts[branch].value = f"{count_str} / {total_str}"
 
     async def _add_log_line(self, record: logging.LogRecord) -> None:
         t = self._ctrl.theme.tokens

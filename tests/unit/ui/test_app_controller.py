@@ -172,11 +172,20 @@ class TestStartParsing:
     def test_returns_true_on_success(self, ctrl: AppController) -> None:
         ctrl.dispatcher.is_running = MagicMock(return_value=False)  # type: ignore[method-assign]
         ctrl.dispatcher.start_tasks = MagicMock(return_value="session_ok")  # type: ignore[method-assign]
-        job = JobConfig(spec_name="habr_search.yaml", max_pages=2)
+        job = JobConfig(spec_name="habr_search.yaml", max_pages=2, max_records=500)
         result = ctrl.start_parsing([job])
         assert result is True
         assert ctrl.current_session_id == "session_ok"
         assert ctrl.active_specs == ["habr_search.yaml"]
+        assert ctrl.active_max_records == 500
+
+    def test_stores_none_when_no_max_records(self, ctrl: AppController) -> None:
+        ctrl.dispatcher.is_running = MagicMock(return_value=False)  # type: ignore[method-assign]
+        ctrl.dispatcher.start_tasks = MagicMock(return_value="session_ok")  # type: ignore[method-assign]
+        job = JobConfig(spec_name="habr_search.yaml", max_pages=2, max_records=None)
+        result = ctrl.start_parsing([job])
+        assert result is True
+        assert ctrl.active_max_records is None
 
 
 class TestAppControllerPublicAPI:

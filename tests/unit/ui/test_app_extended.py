@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from core.job_config import JobConfig
-from ui.app import AppController, _PlaceholderPage, _build_nav_bar, _resolve_font
+from ui.app import AppController, _build_nav_bar, _PlaceholderPage, _resolve_font
 
 
 @pytest.fixture()

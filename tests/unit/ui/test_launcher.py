@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from core.job_config import JobConfig
 from ui.pages.launcher import LauncherPage
 
 
-def _make_source(**overrides):
+def _make_source(**overrides: object) -> dict[str, object]:
     base = {
         "spec_name": "test.yaml",
         "title": "Test Source",
@@ -31,19 +29,24 @@ def mock_ctrl() -> MagicMock:
     ctrl = MagicMock()
     ctrl.theme = MagicMock()
     ctrl.theme.tokens = MagicMock()
-    ctrl.theme.tokens.accent = "#22C55E"
-    ctrl.theme.tokens.accent_danger = "#EF4444"
-    ctrl.theme.tokens.accent_warn = "#F59E0B"
-    ctrl.theme.tokens.accent_info = "#3B82F6"
+    ctrl.theme.tokens.accent = "#0A84FF"
+    ctrl.theme.tokens.accent_danger = "#FF453A"
+    ctrl.theme.tokens.accent_warn = "#FF9F0A"
+    ctrl.theme.tokens.accent_info = "#0A84FF"
     ctrl.theme.tokens.text_primary = "#FFFFFF"
-    ctrl.theme.tokens.text_secondary = "#A1A1AA"
-    ctrl.theme.tokens.text_muted = "#52525B"
-    ctrl.theme.tokens.bg_primary = "#0F0F0F"
-    ctrl.theme.tokens.bg_secondary = "#1A1A1A"
-    ctrl.theme.tokens.bg_elevated = "#242424"
-    ctrl.theme.tokens.bg_input = "#1A1A1A"
-    ctrl.theme.tokens.border = "#27272A"
-    ctrl.theme.tokens.border_focus = "#22C55E"
+    ctrl.theme.tokens.text_secondary = "#EBEBF5"
+    ctrl.theme.tokens.text_muted = "#636366"
+    ctrl.theme.tokens.text_tertiary = "#48484A"
+    ctrl.theme.tokens.bg_primary = "#1C1C1E"
+    ctrl.theme.tokens.bg_secondary = "#2C2C2E"
+    ctrl.theme.tokens.bg_elevated = "#3A3A3C"
+    ctrl.theme.tokens.bg_input = "#2C2C2E"
+    ctrl.theme.tokens.bg_overlay = "#343436"
+    ctrl.theme.tokens.border = "#38383A"
+    ctrl.theme.tokens.border_focus = "#0A84FF"
+    ctrl.theme.tokens.border_light = "#38383A"
+    ctrl.theme.tokens.accent_light = "#1C3A5C"
+    ctrl.theme.tokens.neutral = "#8E8E93"
     ctrl.is_running.return_value = False
     ctrl.page = MagicMock()
     return ctrl
@@ -68,7 +71,7 @@ class TestLauncherCardClick:
         page = LauncherPage(mock_ctrl, [source])
         page.build()
 
-        card = page._cards[0]
+        page._cards[0]
         mock_event = MagicMock()
         mock_event.control.data = source
         mock_event.control.border = None

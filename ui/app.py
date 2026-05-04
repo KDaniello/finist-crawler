@@ -97,6 +97,7 @@ class AppController:
 
         self.current_session_id: str | None = None
         self.active_specs: list[str] = []
+        self.active_max_records: int | None = None
 
         self.navigate: Callable[[str], None] = lambda route: None
         self._ui_log_handler: logging.Handler | None = None
@@ -127,6 +128,8 @@ class AppController:
         if session_id:
             self.current_session_id = session_id
             self.active_specs = specs
+            mr = job_configs[0].max_records
+            self.active_max_records = mr if mr and mr > 0 else None
             return True
         return False
 
@@ -199,10 +202,10 @@ def _build_nav_bar(
                     color=t.text_primary if is_active else t.text_secondary,
                     font_family=FONT_TEXT,
                 ),
-                padding=ft.padding.symmetric(horizontal=16, vertical=8),
+                padding=ft.Padding.symmetric(horizontal=16, vertical=8),
                 border_radius=8,
                 bgcolor=t.bg_elevated if is_active else "transparent",
-                border=ft.border.all(1, t.border) if is_active else None,
+                border=ft.Border.all(1, t.border) if is_active else None,
                 on_click=lambda e, r=route: navigate(r),
                 ink=True,
             )
@@ -276,8 +279,8 @@ def _build_nav_bar(
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
         ),
         bgcolor=t.bg_secondary,
-        padding=ft.padding.symmetric(horizontal=24, vertical=12),
-        border=ft.border.only(bottom=ft.BorderSide(1, t.border)),
+        padding=ft.Padding.symmetric(horizontal=24, vertical=12),
+        border=ft.Border.only(bottom=ft.BorderSide(1, t.border)),
     )
 
 

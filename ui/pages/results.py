@@ -116,8 +116,8 @@ class ResultsPage:
                 spacing=SPACE_XS,
             ),
             border_radius=RADIUS_SM,
-            border=ft.border.all(1, t.border_light),
-            padding=ft.padding.symmetric(horizontal=SPACE_MD, vertical=SPACE_SM),
+            border=ft.Border.all(1, t.border_light),
+            padding=ft.Padding.symmetric(horizontal=SPACE_MD, vertical=SPACE_SM),
             on_click=lambda e: self._load_sessions(),
             ink=True,
             bgcolor=t.bg_elevated,
@@ -156,7 +156,7 @@ class ResultsPage:
             bgcolor=t.bg_elevated,
             border_radius=RADIUS_LG,
             padding=SPACE_LG,
-            border=ft.border.all(1, t.border_light),
+            border=ft.Border.all(1, t.border_light),
         )
 
         preview_panel = ft.Container(
@@ -192,7 +192,7 @@ class ResultsPage:
             bgcolor=t.bg_elevated,
             border_radius=RADIUS_LG,
             padding=SPACE_LG,
-            border=ft.border.all(1, t.border_light),
+            border=ft.Border.all(1, t.border_light),
         )
 
         self._load_sessions()
@@ -213,7 +213,7 @@ class ResultsPage:
                 spacing=SPACE_MD,
                 scroll=ft.ScrollMode.AUTO,
             ),
-            padding=ft.padding.symmetric(horizontal=SPACE_XL, vertical=SPACE_LG),
+            padding=ft.Padding.symmetric(horizontal=SPACE_XL, vertical=SPACE_LG),
             expand=True,
             bgcolor=t.bg_primary,
         )
@@ -272,9 +272,9 @@ class ResultsPage:
                             ),
                             on_click=lambda e: self._ctrl.navigate("launcher"),
                             ink=True,
-                            border=ft.border.all(1, t.accent),
+                            border=ft.Border.all(1, t.accent),
                             border_radius=RADIUS_SM,
-                            padding=ft.padding.symmetric(
+                            padding=ft.Padding.symmetric(
                                 horizontal=SPACE_MD, vertical=SPACE_SM
                             ),
                         ),
@@ -317,9 +317,9 @@ class ResultsPage:
                         font_family=FONT_TEXT,
                         weight=ft.FontWeight.W_500,
                     ),
-                    border=ft.border.all(1, color),
+                    border=ft.Border.all(1, color),
                     border_radius=RADIUS_SM,
-                    padding=ft.padding.symmetric(horizontal=SPACE_SM, vertical=SPACE_XS),
+                    padding=ft.Padding.symmetric(horizontal=SPACE_SM, vertical=SPACE_XS),
                     on_click=lambda e, s=sd, f=fmt: self._export(s, f),
                     ink=True,
                 )
@@ -360,7 +360,7 @@ class ResultsPage:
                                         on_click=lambda e, sd=source_dir: _open_folder(sd),
                                         ink=True,
                                         tooltip="Открыть папку",
-                                        padding=ft.padding.symmetric(
+                                        padding=ft.Padding.symmetric(
                                             horizontal=SPACE_SM, vertical=SPACE_XS
                                         ),
                                         border_radius=RADIUS_SM,
@@ -372,9 +372,9 @@ class ResultsPage:
                                             color=t.text_secondary,
                                             font_family=FONT_TEXT,
                                         ),
-                                        border=ft.border.all(1, t.border_light),
+                                        border=ft.Border.all(1, t.border_light),
                                         border_radius=RADIUS_SM,
-                                        padding=ft.padding.symmetric(
+                                        padding=ft.Padding.symmetric(
                                             horizontal=SPACE_SM, vertical=SPACE_XS
                                         ),
                                         on_click=lambda e, jf=jsonl_file: self._preview(jf),
@@ -389,7 +389,7 @@ class ResultsPage:
                     ),
                     bgcolor=t.bg_overlay,
                     border_radius=RADIUS_MD,
-                    padding=ft.padding.symmetric(horizontal=SPACE_MD, vertical=SPACE_SM),
+                    padding=ft.Padding.symmetric(horizontal=SPACE_MD, vertical=SPACE_SM),
                 )
             )
 
@@ -431,7 +431,7 @@ class ResultsPage:
             ),
             border_radius=RADIUS_MD,
             padding=SPACE_MD,
-            border=ft.border.all(1, t.border_light),
+            border=ft.Border.all(1, t.border_light),
         )
 
     def _count_records(self, jsonl_file: Path) -> int:
@@ -544,7 +544,7 @@ class ResultsPage:
                             content=ft.Row(list[ft.Control](cells), spacing=SPACE_SM),
                             bgcolor=bg,
                             border_radius=RADIUS_SM,
-                            padding=ft.padding.symmetric(horizontal=SPACE_XS, vertical=SPACE_XS),
+                            padding=ft.Padding.symmetric(horizontal=SPACE_XS, vertical=SPACE_XS),
                         )
                     )
 

@@ -135,7 +135,7 @@ class LauncherPage:
             ),
             on_click=self._toggle_advanced,  # type: ignore[arg-type]
             ink=True,
-            padding=ft.padding.symmetric(vertical=SPACE_XS),
+            padding=ft.Padding.symmetric(vertical=SPACE_XS),
         )
         self._advanced_panel = ft.Container(
             content=ft.Column(
@@ -241,7 +241,7 @@ class LauncherPage:
             bgcolor=t.bg_elevated,
             border_radius=RADIUS_LG,
             padding=SPACE_LG,
-            border=ft.border.all(1, t.border_light),
+            border=ft.Border.all(1, t.border_light),
         )
 
         return ft.Container(
@@ -265,7 +265,7 @@ class LauncherPage:
                 spacing=SPACE_MD,
                 scroll=ft.ScrollMode.AUTO,
             ),
-            padding=ft.padding.symmetric(horizontal=SPACE_XL, vertical=SPACE_LG),
+            padding=ft.Padding.symmetric(horizontal=SPACE_XL, vertical=SPACE_LG),
             expand=True,
             bgcolor=t.bg_primary,
         )
@@ -308,7 +308,7 @@ class LauncherPage:
             height=140,
             border_radius=RADIUS_XL,
             bgcolor=t.bg_elevated,
-            border=ft.border.all(1, t.border_light),
+            border=ft.Border.all(1, t.border_light),
             padding=SPACE_MD,
             on_click=self._on_card_click,  # type: ignore[arg-type]
             ink=True,
@@ -330,7 +330,7 @@ class LauncherPage:
                 ),
                 bgcolor=t.accent_light if is_selected else t.bg_overlay,
                 border_radius=RADIUS_SM,
-                padding=ft.padding.symmetric(horizontal=SPACE_MD, vertical=SPACE_SM),
+                padding=ft.Padding.symmetric(horizontal=SPACE_MD, vertical=SPACE_SM),
                 on_click=lambda e, idx=i: self._on_preset_click(idx),
                 ink=True,
             )
@@ -402,10 +402,10 @@ class LauncherPage:
         source = e.control.data
 
         for card in self._cards:
-            card.border = ft.border.all(1, t.border_light)
+            card.border = ft.Border.all(1, t.border_light)
             card.bgcolor = t.bg_elevated
 
-        e.control.border = ft.border.all(2, t.accent)  # type: ignore[attr-defined]
+        e.control.border = ft.Border.all(2, t.accent)  # type: ignore[attr-defined]
         e.control.bgcolor = t.accent_light  # type: ignore[attr-defined]
 
         self._selected_source = source

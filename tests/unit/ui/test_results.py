@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -14,17 +14,20 @@ def mock_ctrl(tmp_path: Path) -> MagicMock:
     ctrl = MagicMock()
     ctrl.theme = MagicMock()
     ctrl.theme.tokens = MagicMock()
-    ctrl.theme.tokens.accent = "#22C55E"
-    ctrl.theme.tokens.accent_danger = "#EF4444"
-    ctrl.theme.tokens.accent_warn = "#F59E0B"
-    ctrl.theme.tokens.accent_info = "#3B82F6"
+    ctrl.theme.tokens.accent = "#0A84FF"
+    ctrl.theme.tokens.accent_danger = "#FF453A"
+    ctrl.theme.tokens.accent_warn = "#FF9F0A"
+    ctrl.theme.tokens.accent_info = "#0A84FF"
     ctrl.theme.tokens.text_primary = "#FFFFFF"
-    ctrl.theme.tokens.text_secondary = "#A1A1AA"
-    ctrl.theme.tokens.text_muted = "#52525B"
-    ctrl.theme.tokens.bg_primary = "#0F0F0F"
-    ctrl.theme.tokens.bg_secondary = "#1A1A1A"
-    ctrl.theme.tokens.bg_elevated = "#242424"
-    ctrl.theme.tokens.border = "#27272A"
+    ctrl.theme.tokens.text_secondary = "#EBEBF5"
+    ctrl.theme.tokens.text_muted = "#636366"
+    ctrl.theme.tokens.text_tertiary = "#48484A"
+    ctrl.theme.tokens.bg_primary = "#1C1C1E"
+    ctrl.theme.tokens.bg_secondary = "#2C2C2E"
+    ctrl.theme.tokens.bg_elevated = "#3A3A3C"
+    ctrl.theme.tokens.bg_overlay = "#343436"
+    ctrl.theme.tokens.border = "#38383A"
+    ctrl.theme.tokens.border_light = "#38383A"
     ctrl.page = MagicMock()
     ctrl._paths = MagicMock()
     ctrl._paths.data_dir = tmp_path / "data"
@@ -32,7 +35,7 @@ def mock_ctrl(tmp_path: Path) -> MagicMock:
     return ctrl
 
 
-def _create_session_data(data_dir: Path, session_name: str, source_name: str, records: list[dict]) -> None:
+def _create_session_data(data_dir: Path, session_name: str, source_name: str, records: list[dict[str, object]]) -> None:
     session_dir = data_dir / session_name
     source_dir = session_dir / source_name
     source_dir.mkdir(parents=True, exist_ok=True)
@@ -140,5 +143,5 @@ class TestResultsExport:
 class TestResultsShowSnack:
     def test_show_snack(self, mock_ctrl: MagicMock) -> None:
         page = ResultsPage(mock_ctrl)
-        page._show_snack("Test message", "#22C55E")
+        page._show_snack("Test message", "#30D158")
         mock_ctrl.page.update.assert_called()

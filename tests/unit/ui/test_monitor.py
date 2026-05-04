@@ -15,19 +15,24 @@ def mock_ctrl() -> MagicMock:
     ctrl = MagicMock()
     ctrl.theme = MagicMock()
     ctrl.theme.tokens = MagicMock()
-    ctrl.theme.tokens.accent = "#22C55E"
-    ctrl.theme.tokens.accent_danger = "#EF4444"
-    ctrl.theme.tokens.accent_warn = "#F59E0B"
-    ctrl.theme.tokens.accent_info = "#3B82F6"
+    ctrl.theme.tokens.accent = "#0A84FF"
+    ctrl.theme.tokens.accent_danger = "#FF453A"
+    ctrl.theme.tokens.accent_warn = "#FF9F0A"
+    ctrl.theme.tokens.accent_info = "#0A84FF"
     ctrl.theme.tokens.text_primary = "#FFFFFF"
-    ctrl.theme.tokens.text_secondary = "#A1A1AA"
-    ctrl.theme.tokens.text_muted = "#52525B"
-    ctrl.theme.tokens.bg_primary = "#0F0F0F"
-    ctrl.theme.tokens.bg_secondary = "#1A1A1A"
-    ctrl.theme.tokens.bg_elevated = "#242424"
-    ctrl.theme.tokens.border = "#27272A"
+    ctrl.theme.tokens.text_secondary = "#EBEBF5"
+    ctrl.theme.tokens.text_muted = "#636366"
+    ctrl.theme.tokens.text_tertiary = "#48484A"
+    ctrl.theme.tokens.bg_primary = "#1C1C1E"
+    ctrl.theme.tokens.bg_secondary = "#2C2C2E"
+    ctrl.theme.tokens.bg_elevated = "#3A3A3C"
+    ctrl.theme.tokens.border = "#38383A"
+    ctrl.theme.tokens.border_light = "#38383A"
+    ctrl.theme.tokens.success = "#30D158"
+    ctrl.theme.tokens.warning = "#FF9F0A"
     ctrl.is_running.return_value = False
     ctrl.active_specs = ["reddit.yaml"]
+    ctrl.active_max_records = None
     ctrl._ui_log_handler = None
     ctrl.log_manager = MagicMock()
     ctrl.log_manager.add_handler.return_value = True
@@ -96,6 +101,7 @@ class TestMonitorTelemetry:
     async def test_apply_telemetry_progress(self, mock_ctrl: MagicMock) -> None:
         page = MonitorPage(mock_ctrl)
         page.build()
+        page._source_key = "reddit"
         event = TelemetryEvent(
             event_type=TelemetryEventType.PROGRESS,
             branch_url="https://example.com/page",
@@ -103,12 +109,30 @@ class TestMonitorTelemetry:
             total=50,
         )
         await page._apply_telemetry(event)
+        assert page._total_records == 10
         mock_ctrl.page.update.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_apply_telemetry_progress_with_target(self, mock_ctrl: MagicMock) -> None:
+        mock_ctrl.active_max_records = 500
+        page = MonitorPage(mock_ctrl)
+        page.build()
+        page._source_key = "reddit"
+        event = TelemetryEvent(
+            event_type=TelemetryEventType.PROGRESS,
+            current=100,
+            total=0,
+        )
+        await page._apply_telemetry(event)
+        bar_value = page._overall_bar.value
+        assert bar_value is not None
+        assert abs(float(bar_value) - 0.2) < 0.01
 
     @pytest.mark.asyncio
     async def test_apply_telemetry_branch_done(self, mock_ctrl: MagicMock) -> None:
         page = MonitorPage(mock_ctrl)
         page.build()
+        page._source_key = "reddit"
         event = TelemetryEvent(
             event_type=TelemetryEventType.BRANCH_DONE,
             branch_url="https://example.com/reviews",
@@ -117,17 +141,45 @@ class TestMonitorTelemetry:
         await page._apply_telemetry(event)
         assert page._total_records == 25
 
-
-class TestMonitorBranchName:
-    def test_branch_name_from_url(self, mock_ctrl: MagicMock) -> None:
+    @pytest.mark.asyncio
+    async def test_apply_telemetry_worker_done_with_records(self, mock_ctrl: MagicMock) -> None:
         page = MonitorPage(mock_ctrl)
-        name = page._branch_name("https://example.com/reviews/12345")
-        assert name
+        page.build()
+        page._source_key = "reddit"
+        page._start_time = 0
+        event = TelemetryEvent(
+            event_type=TelemetryEventType.WORKER_DONE,
+            current=150,
+        )
+        await page._apply_telemetry(event)
+        assert page._total_records == 150
+        assert page._is_monitoring is False
+        assert page._completion_col.visible is True
 
-    def test_branch_name_short_url(self, mock_ctrl: MagicMock) -> None:
+    @pytest.mark.asyncio
+    async def test_apply_telemetry_worker_done_no_records(self, mock_ctrl: MagicMock) -> None:
         page = MonitorPage(mock_ctrl)
-        name = page._branch_name("reviews")
-        assert name
+        page.build()
+        page._source_key = "reddit"
+        event = TelemetryEvent(
+            event_type=TelemetryEventType.WORKER_DONE,
+            current=0,
+        )
+        await page._apply_telemetry(event)
+        assert "ничего не найдено" in page._status_text.value
+        assert page._completion_col.visible is True
+
+    @pytest.mark.asyncio
+    async def test_apply_telemetry_worker_error(self, mock_ctrl: MagicMock) -> None:
+        page = MonitorPage(mock_ctrl)
+        page.build()
+        event = TelemetryEvent(
+            event_type=TelemetryEventType.WORKER_ERROR,
+            error_message="Connection refused",
+        )
+        await page._apply_telemetry(event)
+        assert "Connection refused" in page._status_text.value
+        assert page._is_monitoring is False
 
 
 class TestMonitorAddLogLine:
@@ -173,6 +225,28 @@ class TestMonitorResources:
     async def test_update_resources_ui(self, mock_ctrl: MagicMock) -> None:
         page = MonitorPage(mock_ctrl)
         page.build()
-        stats = SystemStats(cpu_percent=50.0, ram_percent=60.0, ram_used_gb=8.0, ram_total_gb=16.0, app_memory_mb=256.0)
+        page._source_key = "reddit"
+        page._total_records = 100
+        page._start_time = 0
+        stats = SystemStats(
+            cpu_percent=50.0, ram_percent=60.0,
+            ram_used_gb=8.0, ram_total_gb=16.0, app_memory_mb=256.0,
+        )
         await page._update_resources_ui(stats)
         mock_ctrl.page.update.assert_called()
+
+
+class TestMonitorProgressLabel:
+    def test_progress_label_no_target(self, mock_ctrl: MagicMock) -> None:
+        mock_ctrl.active_max_records = None
+        page = MonitorPage(mock_ctrl)
+        page._source_key = "reddit"
+        page._total_records = 42
+        assert page._progress_label() == "42 комментариев"
+
+    def test_progress_label_with_target(self, mock_ctrl: MagicMock) -> None:
+        mock_ctrl.active_max_records = 500
+        page = MonitorPage(mock_ctrl)
+        page._source_key = "reddit"
+        page._total_records = 42
+        assert "из ~500" in page._progress_label()
