@@ -104,7 +104,8 @@ def _handle_exceptions(
         sys.__excepthook__(exc_type, exc_value, exc_traceback)  # type: ignore[arg-type]
         return
     logging.critical(
-        "Критическая необработанная ошибка:", exc_info=(exc_type, exc_value, exc_traceback)  # type: ignore[arg-type]
+        "Критическая необработанная ошибка:",
+        exc_info=(exc_type, exc_value, exc_traceback),  # type: ignore[arg-type]
     )
 
 
@@ -153,7 +154,9 @@ class LogManager:
         handlers: list[logging.Handler] = [file_handler, stream_handler]
 
         if discord_webhook_url:
-            discord_handler = AsyncDiscordHandler(webhook_url=discord_webhook_url, app_name=app_name)
+            discord_handler = AsyncDiscordHandler(
+                webhook_url=discord_webhook_url, app_name=app_name
+            )
             discord_handler.setLevel(logging.ERROR)
             handlers.append(discord_handler)
 
@@ -162,7 +165,9 @@ class LogManager:
         root.handlers = []
         root.addHandler(logging.handlers.QueueHandler(log_queue))
 
-        self._listener = logging.handlers.QueueListener(log_queue, *handlers, respect_handler_level=True)
+        self._listener = logging.handlers.QueueListener(
+            log_queue, *handlers, respect_handler_level=True
+        )
         self._listener.start()
 
         sys.excepthook = _handle_exceptions
@@ -189,6 +194,17 @@ class LogManager:
         self._listener.handlers = (*current, handler)
         return True
 
+    def remove_handler(self, handler: logging.Handler) -> bool:
+        """Удаляет хендлер из QueueListener."""
+        if self._listener is None:
+            return False
+        current = list(self._listener.handlers)
+        if handler in current:
+            current.remove(handler)
+            self._listener.handlers = tuple(current)
+            return True
+        return False
+
     def stop(self) -> None:
         """Корректное завершение записи логов и освобождение файлов/потоков."""
         if self._listener:
@@ -198,7 +214,9 @@ class LogManager:
             self._listener = None
 
 
-def setup_worker_logging(log_queue: multiprocessing.Queue[logging.LogRecord], debug: bool = False) -> None:
+def setup_worker_logging(
+    log_queue: multiprocessing.Queue[logging.LogRecord], debug: bool = False
+) -> None:
     """
     Настройка логирования для ВОРКЕРА (запускается в начале каждого нового Process).
     Воркер НЕ трогает файлы, он только перекидывает логи в очередь главного процесса.

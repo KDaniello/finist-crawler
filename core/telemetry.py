@@ -14,6 +14,7 @@ class TelemetryEventType(Enum):
     CAPTCHA_SOLVED = "captcha_solved"
     WORKER_DONE = "worker_done"
     WORKER_ERROR = "worker_error"
+    WORKER_STARTED = "worker_started"
 
 
 @dataclass
@@ -72,11 +73,14 @@ class TelemetryEvent:
 
         if cmd == "PROGRESS" and len(parts) >= 5:
             try:
+                current_val = int(parts[3])
+                total_val = int(parts[4])
                 return cls(
                     event_type=TelemetryEventType.PROGRESS,
                     branch_url=parts[2],
-                    current=int(parts[3]),
-                    total=int(parts[4]),
+                    current=current_val,
+                    # total=-1 означает "неизвестно"
+                    total=total_val if total_val > 0 else None,
                 )
             except ValueError:
                 return None
@@ -109,16 +113,27 @@ class TelemetryEvent:
                 return cls(
                     event_type=TelemetryEventType.WORKER_DONE,
                     spec_name=parts[2],
-                    current=int(parts[3]) if len(parts) >= 4 else None,
+                    current=int(parts[3]) if len(parts) >= 4 else 0,
                 )
             except ValueError:
-                return None
+                # Если не удалось распарсить count — всё равно создаём событие
+                return cls(
+                    event_type=TelemetryEventType.WORKER_DONE,
+                    spec_name=parts[2],
+                    current=0,
+                )
 
         if cmd == "WORKER_ERROR" and len(parts) >= 3:
             return cls(
                 event_type=TelemetryEventType.WORKER_ERROR,
                 spec_name=parts[2],
                 error_message="|".join(parts[3:]) if len(parts) >= 4 else None,
+            )
+
+        if cmd == "WORKER_STARTED" and len(parts) >= 3:
+            return cls(
+                event_type=TelemetryEventType.WORKER_STARTED,
+                spec_name=parts[2],
             )
 
         return None
